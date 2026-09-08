@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AsobiAgent (アソビ・エージェント) — Hackathon Demo</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-logo">
+        <span class="logo-icon">🤖</span>
+        <div>
+          <h1 class="logo-title">AsobiAgent <span>(アソビ・エージェント)</span></h1>
+          <p class="logo-subtitle">第5回 Agentic AI Hackathon with Google Cloud</p>
+        </div>
+      </div>
+      <div class="system-status-pills">
+        <span class="pill pill-green"><span class="dot"></span> GMI Cloud (Qwen3.8-Flash)</span>
+        <span class="pill pill-blue"><span class="dot"></span> 駅すぱあと MCP (ダイヤ情報不使用)</span>
+        <span class="pill pill-purple"><span class="dot"></span> LINE Flex Engine</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="scenario-selector">
+        <label for="scenarioSelect">🏆 デモシナリオ:</label>
+        <select id="scenarioSelect">
+          <option value="tokyo_meat_4">【シナリオ1】渋谷・新宿避けて肉 (中目黒・吉祥寺・横浜・柏)</option>
+          <option value="cafe_girls_3">【シナリオ2】休日ゆったりカフェ (三軒茶屋・北千住・恵比寿)</option>
+          <option value="craft_beer_3">【シナリオ3】金曜クラフトビール (大宮・品川・立川)</option>
+        </select>
+        <button id="runScenarioBtn" class="btn btn-primary">▶ シナリオ自動実行</button>
+      </div>
+      <a href="/presentation_ja.html" target="_blank" class="btn btn-secondary" style="text-decoration: none; color: #38BDF8; border-color: rgba(56, 189, 248, 0.4);">📑 発表スライド</a>
+      <button id="resetBtn" class="btn btn-secondary">🔄 リセット</button>
+    </div>
+  </header>
+
+
+  <!-- Main Container -->
+  <main class="main-container">
+    <!-- Left Column: LINE Group Chat Mockup -->
+    <section class="phone-mockup-section">
+      <div class="phone-device">
+        <!-- Phone Speaker & Camera Notch -->
+        <div class="phone-notch">
+          <div class="camera-lens"></div>
+          <div class="speaker-bar"></div>
+        </div>
+
+        <!-- LINE Chat Interface -->
+        <div class="line-app">
+          <!-- LINE Header -->
+          <div class="line-header">
+            <div class="line-header-left">
+              <span class="back-chevron">❮</span>
+              <div class="chat-info">
+                <span class="chat-name">週末あそび計画 🍖🍺</span>
+                <span class="chat-members-count">(5)</span>
+              </div>
+            </div>
+            <div class="line-header-icons">
+              <span>🔍</span>
+              <span>📞</span>
+              <span>☰</span>
+            </div>
+          </div>
+
+          <!-- LINE Message History Area -->
+          <div class="line-chat-body" id="chatBody">
+            <div class="chat-date-separator"><span>今日</span></div>
+            <!-- Dynamic Messages will be injected here -->
+          </div>
+
+          <!-- LINE Input Bar -->
+          <div class="line-input-bar">
+            <div class="sender-selector-wrapper">
+              <label for="senderSelect">発言者:</label>
+              <select id="senderSelect">
+                <option value="佐藤">佐藤 (横浜発)</option>
+                <option value="鈴木">鈴木 (吉祥寺発)</option>
+                <option value="田中">田中 (中目黒発)</option>
+                <option value="高橋">高橋 (柏発)</option>
+              </select>
+            </div>
+            <div class="input-row">
+              <span class="input-icon">➕</span>
+              <input type="text" id="chatInput" placeholder="メッセージを入力（例: 肉食べたい！）" />
+              <button id="sendBtn" class="btn-line-send">送信</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: Multi-Agent Live Inspector & Telemetry -->
+    <section class="telemetry-section">
+      <!-- Agent Pipeline Progress -->
+      <div class="card pipeline-card">
+        <h2 class="card-title">⚡ Multi-Agent 自律実行パイプライン</h2>
+        <div class="pipeline-steps">
+          <div class="step-box active" id="stepAgent1">
+            <div class="step-num">Agent 1</div>
+            <div class="step-name">スケジュール＆希望同期</div>
+            <div class="step-status">待機中</div>
+          </div>
+          <div class="step-arrow">➔</div>
+          <div class="step-box" id="stepAgent2">
+            <div class="step-num">Agent 2</div>
+            <div class="step-name">駅すぱあと中間駅算出</div>
+            <div class="step-status">未実行</div>
+          </div>
+          <div class="step-arrow">➔</div>
+          <div class="step-box" id="stepAgent3">
+            <div class="step-num">Agent 3</div>
+            <div class="step-name">混雑回避スポット探索</div>
+            <div class="step-status">未実行</div>
+          </div>
+          <div class="step-arrow">➔</div>
+          <div class="step-box" id="stepAgent4">
+            <div class="step-num">Agent 4</div>
+            <div class="step-name">自律AI電話予約</div>
+            <div class="step-status">未実行</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabbed Telemetry Views -->
+      <div class="card telemetry-card">
+        <div class="tab-headers">
+          <button class="tab-btn active" data-tab="tabEkispert">🚇 駅すぱあと (Ekispert) 解析</button>
+          <button class="tab-btn" data-tab="tabFairness">⚖ 公平性スコア & 移動比較</button>
+          <button class="tab-btn" data-tab="tabLLM">🧠 GMI Cloud 推論ログ</button>
+          <button class="tab-btn" data-tab="tabPipeline">📋 全エージェント実行ログ</button>
+        </div>
+
+        <div class="tab-contents">
+          <!-- Tab 1: Ekispert Details -->
+          <div class="tab-pane active" id="tabEkispert">
+            <div class="api-compliance-badge">
+              <span class="badge-icon">🛡️</span>
+              <div>
+                <strong>ハッカソン規約遵守 (ダイヤ情報不使用)</strong>
+                <p>時刻指定のダイヤ探索は行わず、<code>multipleRange</code> および <code>searchType: plain</code>（平均乗車時間探索）により全員の移動バランスを公平に算出しています。</p>
+              </div>
+            </div>
+
+            <div class="metrics-grid">
+              <div class="metric-box">
+                <span class="metric-label">選出された中間駅</span>
+                <span class="metric-value text-green" id="metricHubStation">-</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-label">公平性スコア</span>
+                <span class="metric-value text-gold" id="metricFairnessScore">-</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-label">最大移動時間差</span>
+                <span class="metric-value" id="metricSpread">-</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-label">平均移動時間</span>
+                <span class="metric-value" id="metricAvgTime">-</span>
+              </div>
+            </div>
+
+            <div class="code-preview-box">
+              <div class="code-header">駅すぱあと MCP Payload & 算出ロジック:</div>
+              <pre id="ekispertPayloadView">// 駅すぱあとAPIの呼出結果がここにリアルタイム表示されます</pre>
+            </div>
+          </div>
+
+          <!-- Tab 2: Fairness Metrics -->
+          <div class="tab-pane" id="tabFairness">
+            <div class="fairness-section">
+              <h3>メンバー間 移動時間バランス分析</h3>
+              <p class="section-desc">特定の参加者に過度な移動負担（30分以上の差）が生じないよう、全員の移動時間を均等化しています。</p>
+              <div class="fairness-bars" id="fairnessBars">
+                <p class="empty-hint">中間駅が算出されるとグラフが表示されます</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 3: GMI LLM Inference -->
+          <div class="tab-pane" id="tabLLM">
+            <div class="llm-info-bar">
+              <span><strong>Model:</strong> Qwen/Qwen3.8-Flash (1M Context)</span>
+              <span><strong>Provider:</strong> GMI Cloud GPU</span>
+            </div>
+            <div class="code-preview-box">
+              <div class="code-header">LLM 構造化抽出 (Agent 1 & Agent 3):</div>
+              <pre id="llmPayloadView">// GMI LLMの推論結果がここに表示されます</pre>
+            </div>
+          </div>
+
+          <!-- Tab 4: Pipeline Logs -->
+          <div class="tab-pane" id="tabPipeline">
+            <div class="agent-log-stream" id="agentLogStream">
+              <div class="log-entry">システム初期化完了。メッセージの入力を待機中...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Voice Call Modal (Agent 4 Autonomous Phone Simulation) -->
+  <div class="modal-overlay" id="voiceCallModal">
+    <div class="modal-card phone-call-card">
+      <div class="call-header">
+        <div class="calling-indicator">
+          <span class="live-tag">LIVE AI CALL</span>
+          <span class="call-timer" id="callTimer">00:12</span>
+        </div>
+        <h2 class="venue-call-title" id="callVenueTitle">恵比寿 薪火バル CANTE</h2>
+        <p class="venue-call-phone" id="callVenuePhone">📞 03-5792-4810 に架電中...</p>
+      </div>
+
+      <!-- Sound Wave Visualizer -->
+      <div class="sound-wave-container">
+        <div class="sound-wave-bar"></div>
+        <div class="sound-wave-bar"></div>
+        <div class="sound-wave-bar"></div>
+        <div class="sound-wave-bar"></div>
+        <div class="sound-wave-bar"></div>
+        <div class="sound-wave-bar"></div>
+        <div class="sound-wave-bar"></div>
+        <div class="sound-wave-bar"></div>
+      </div>
+
+      <!-- Live Dialogue Turns -->
+      <div class="call-dialogue-box" id="callDialogueBox">
+        <!-- Turns injected dynamically -->
+      </div>
+
+      <!-- Call Status / Controls -->
+      <div class="call-footer">
+        <div class="call-audio-toggle">
+          <label><input type="checkbox" id="enableTtsAudio" checked> 🔊 日本語音声読み上げ (Web Speech TTS)</label>
+        </div>
+        <button class="btn btn-danger" id="closeCallModalBtn">通話を終了・チケット受領</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

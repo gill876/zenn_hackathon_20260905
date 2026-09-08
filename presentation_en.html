@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AsobiAgent — Pitch Deck & Speaker Notes (English + Japanese Cheatsheet)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+JP:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0B0F19;
+      --card-bg: #161F30;
+      --card-border: #23324A;
+      --accent-green: #06C755;
+      --accent-blue: #38BDF8;
+      --accent-gold: #FBBF24;
+      --text-main: #F8FAFC;
+      --text-sub: #94A3B8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .slide-navbar {
+      height: 54px;
+      background: #111827;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 24px;
+      z-index: 100;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 16px;
+    }
+    .nav-brand span { color: var(--accent-green); }
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn-nav {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-nav:hover { background: #1F293D; border-color: var(--accent-blue); }
+    .slide-indicator {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--text-sub);
+    }
+    .btn-lang {
+      background: rgba(6, 199, 85, 0.15);
+      border: 1px solid rgba(6, 199, 85, 0.4);
+      color: var(--accent-green);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .btn-demo {
+      background: var(--accent-green);
+      color: #FFF;
+      text-decoration: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .deck-viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    .slide {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      padding: 36px 60px;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.25s ease-in-out;
+    }
+    .slide.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    .slide-category {
+      color: var(--accent-blue);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+    .slide-title {
+      font-size: 36px;
+      font-weight: 900;
+      line-height: 1.25;
+      margin-bottom: 20px;
+      color: #FFFFFF;
+    }
+    .slide-title span { color: var(--accent-green); }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 22px;
+    }
+    .card h3 {
+      font-size: 17px;
+      color: #FFF;
+      margin-bottom: 8px;
+    }
+    .card p {
+      font-size: 13.5px;
+      color: var(--text-sub);
+      line-height: 1.6;
+    }
+
+    /* Speaker Notes Box */
+    .speaker-box {
+      background: #0B132B;
+      border: 1px solid #1E293B;
+      border-left: 4px solid var(--accent-gold);
+      border-radius: 0 10px 10px 0;
+      padding: 16px 20px;
+      margin-top: 20px;
+    }
+    .speaker-box-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .speaker-tag {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .speaker-en {
+      font-size: 14px;
+      color: #F8FAFC;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+    .speaker-ja-pill {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 6px;
+      padding: 8px 12px;
+    }
+    .speaker-ja-text {
+      font-size: 13px;
+      color: #38BDF8;
+      font-weight: bold;
+    }
+    .speaker-ja-romaji {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #94A3B8;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="slide-navbar">
+    <div class="nav-brand">
+      <span>🤖</span> AsobiAgent — Pitch Deck & Speaker Notes
+    </div>
+    <div class="nav-controls">
+      <button class="btn-nav" id="prevBtn">◀ Previous</button>
+      <span class="slide-indicator" id="slideIndicator">1 / 6</span>
+      <button class="btn-nav" id="nextBtn">Next ▶</button>
+      <a href="/presentation_ja.html" class="btn-lang">日本語スライド (Japanese Deck)</a>
+      <a href="/" class="btn-demo" target="_blank">🚀 Launch Live Demo</a>
+    </div>
+  </header>
+
+  <main class="deck-viewport">
+
+    <!-- SLIDE 1: Title -->
+    <section class="slide active">
+      <div class="slide-category">The 5th Agentic AI Hackathon with Google Cloud</div>
+      <h1 class="slide-title">AsobiAgent: <span>Autonomous Group Outing Concierge</span></h1>
+      <p style="font-size: 18px; color: #CBD5E1; max-width: 850px; margin-bottom: 24px;">
+        An autonomous multi-agent system operating natively inside <strong>LINE group chats</strong> to eliminate "organizer fatigue" — automatically resolving schedules, calculating fair midpoint stations with <strong>Ekispert</strong>, curating crowd-avoiding hidden gems, and autonomously booking tables over the phone.
+      </p>
+
+      <div class="grid-3" style="max-width: 900px;">
+        <div class="card" style="border-color: #38BDF8;">
+          <h3>🚇 Ekispert MCP Tool</h3>
+          <p>Strictly compliant: non-timetable average routes to compute equal travel time hubs.</p>
+        </div>
+        <div class="card" style="border-color: #06C755;">
+          <h3>💬 LINE Flex UI</h3>
+          <p>Zero app downloads. Frictionless native experience inside existing group chats.</p>
+        </div>
+        <div class="card">
+          <h3>⚡ GMI Cloud LLM</h3>
+          <p>Powered by fast Qwen3.8-Flash (1M context) for instant natural language extraction.</p>
+        </div>
+      </div>
+
+      <div class="speaker-box" style="max-width: 900px;">
+        <div class="speaker-box-header">
+          <span class="speaker-tag">🗣️ Pitch Opening Script (Say this clearly):</span>
+        </div>
+        <div class="speaker-en">
+          "Hello judges! We created <strong>AsobiAgent</strong> — an AI multi-agent concierge that turns messy LINE group chats into fully booked weekend plans."
+        </div>
+        <div class="speaker-ja-pill">
+          <div class="speaker-ja-text">「こんにちは！私たちは、LINE上でグループのお出かけ計画を完全自動化する『AsobiAgent』を開発しました。」</div>
+          <div class="speaker-ja-romaji">"Konnichiwa! Watashitachi wa, LINE-jou de group no ode kake keikaku wo kanzen jidouka suru 'AsobiAgent' wo kaihatsu shimashita."</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: The Real-World Problem -->
+    <section class="slide">
+      <div class="slide-category">Criterion 1: Real-World Problem (現場起点の切実な課題)</div>
+      <h1 class="slide-title">Planning Tokyo Outings is <span>Exhausting</span></h1>
+      
+      <div class="grid-3">
+        <div class="card">
+          <h3>😫 30+ Message Chaos</h3>
+          <p>Endless text threads just to figure out who is coming from where and what people want to eat. Nobody wants to be the <em>Kanji</em> (organizer).</p>
+        </div>
+        <div class="card">
+          <h3>⚖️ Unfair Commute Times</h3>
+          <p>One friend travels 50 mins while another travels 10 mins. Agreeing on a central station causes silent friction and resentment.</p>
+        </div>
+        <div class="card">
+          <h3>☕ Tokyo Weekend Over-Tourism</h3>
+          <p>Major hubs like Shibuya and Shinjuku are packed. Groups end up waiting 45+ minutes in line at crowded cafes without reservations.</p>
+        </div>
+      </div>
+
+      <div class="speaker-box">
+        <div class="speaker-box-header">
+          <span class="speaker-tag">🗣️ Speaker Script:</span>
+        </div>
+        <div class="speaker-en">
+          "When friends plan an outing in Tokyo, it takes 30+ LINE messages, people argue over travel times, and everyone ends up waiting in a 45-minute queue in Shibuya. AsobiAgent eliminates this friction completely."
+        </div>
+        <div class="speaker-ja-pill">
+          <div class="speaker-ja-text">「友達とのお出かけは、LINEのやり取りが多く、移動時間の不満も生まれ、結局混雑に巻き込まれます。AsobiAgentはこの幹事負担をゼロにします。」</div>
+          <div class="speaker-ja-romaji">"Tomodachi to no odekake wa, LINE no yaritori ga ooku, idou jikan no fuman mo umare, kekkyoku konzatsu ni makikomaremasu. AsobiAgent wa kono kanji futan wo zero ni shimasu."</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: Multi-Agent Workflow -->
+    <section class="slide">
+      <div class="slide-category">Criterion 2: Multi-Step Autonomous Workflow (複数ステップの自律実行)</div>
+      <h1 class="slide-title">4 Specialized <span>Autonomous Agents</span> in Harmony</h1>
+
+      <div class="grid-4">
+        <div class="card">
+          <div style="color: #38BDF8; font-size: 11px; font-weight: bold; margin-bottom: 4px;">AGENT 1</div>
+          <h3>📅 Schedule Sync</h3>
+          <p>Listens to casual group banter. Extracts participant names, departure stations, and food tastes.</p>
+        </div>
+        <div class="card" style="border-color: #38BDF8;">
+          <div style="color: #38BDF8; font-size: 11px; font-weight: bold; margin-bottom: 4px;">AGENT 2 (EKISPERT)</div>
+          <h3>🚇 Hub Balancer</h3>
+          <p>Queries Ekispert range search to compute the fairest midpoint station within ±5 min travel equality.</p>
+        </div>
+        <div class="card">
+          <div style="color: #38BDF8; font-size: 11px; font-weight: bold; margin-bottom: 4px;">AGENT 3</div>
+          <h3>🌿 Spot Discovery</h3>
+          <p>Avoids crowded tourist chains. Discovers calm back-alley venues and hidden gems (穴場).</p>
+        </div>
+        <div class="card" style="border-color: #06C755;">
+          <div style="color: #06C755; font-size: 11px; font-weight: bold; margin-bottom: 4px;">AGENT 4</div>
+          <h3>📞 Voice Booking</h3>
+          <p>Directly places an AI phone call to non-tech Japanese venues and secures reservations.</p>
+        </div>
+      </div>
+
+      <div class="speaker-box">
+        <div class="speaker-box-header">
+          <span class="speaker-tag">🗣️ Speaker Script:</span>
+        </div>
+        <div class="speaker-en">
+          "Our system runs 4 sequential agents: Agent 1 parses the chat, Agent 2 calculates the equal midpoint using Ekispert, Agent 3 curates low-crowd spots, and Agent 4 calls the restaurant directly to book a table."
+        </div>
+        <div class="speaker-ja-pill">
+          <div class="speaker-ja-text">「システムは4つのエージェントで構成されます。雑談から出発駅を読み取り、駅すぱあとAPIで公平な中間駅を割り出し、穴場を提案し、店舗への電話予約まで自律的に完遂します。」</div>
+          <div class="speaker-ja-romaji">"System wa 4-tsu no agent de kousei saremasu. Zatsudan kara shuppatsueki wo yomitori, Ekispert API de kouhei na chuukan-eki wo waridashi, anaba wo teian shi, tenpo e no denwa yoyaku made jiritsuteki ni kansui shimasu."</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: Ekispert Compliance & Innovation -->
+    <section class="slide">
+      <div class="slide-category">Hackathon Compliance & API Integrity</div>
+      <h1 class="slide-title">Strict Compliance: <span>Non-Timetable Usage</span></h1>
+
+      <div class="grid-2">
+        <div class="card" style="border-color: #38BDF8;">
+          <h3>🛡️ Strict Hackathon Rule Adherence</h3>
+          <p style="margin-bottom: 12px;">We strictly avoid specific timetable/schedule queries (`ダイヤ情報不使用`).</p>
+          <ul style="padding-left: 20px; font-size: 13.5px; line-height: 1.8; color: #CBD5E1;">
+            <li>Uses <code>ekispert_api_search_ranges</code> (reachable station space)</li>
+            <li>Uses <code>searchType: plain</code> (average transit duration)</li>
+            <li>Balances maximum travel time and variance across all attendees</li>
+          </ul>
+        </div>
+        <div class="card" style="border-color: #06C755;">
+          <h3>⚖️ Real Test Result</h3>
+          <p style="margin-bottom: 8px;">4 friends coming from Yokohama, Nakameguro, Kichijoji, and Kashiwa:</p>
+          <div style="background: #0B0F19; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 12.5px; color: #4ADE80; line-height: 1.6;">
+            • Yokohama: 44 mins<br>
+            • Nakameguro: 39 mins<br>
+            • Kichijoji: 37 mins<br>
+            • Kashiwa: 42 mins<br>
+            ➔ Fair Midpoint: <strong>Okachimachi / Ueno (±4 min difference!)</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="speaker-box">
+        <div class="speaker-box-header">
+          <span class="speaker-tag">🗣️ Speaker Script:</span>
+        </div>
+        <div class="speaker-en">
+          "We strictly adhere to the hackathon's rules by not using timetable searches. Instead, we use topological range searches and average transit times to calculate the fairest hub station in sub-seconds."
+        </div>
+        <div class="speaker-ja-pill">
+          <div class="speaker-ja-text">「規約に従い、時刻指定ダイヤ探索は使っていません。範囲探索と平均探索のみを用いて、全員の移動時間がほぼ均等になる公平なハブ駅を高速に算出しています。」</div>
+          <div class="speaker-ja-romaji">"Kiyaku ni shitagai, jikoku shitei daiya tansaku wa tsukatte imasen. Han'i tansaku to heikin tansaku nomi wo mochiite, zen'in no idou jikan ga hobo kintou ni naru kouhei na habu-eki wo kousoku ni sanshutsu shite imasu."</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: Tech Stack & Zero-Friction UX -->
+    <section class="slide">
+      <div class="slide-category">Criterion 3: Low-Cognitive-Load UX (認知負荷を下げる体験設計)</div>
+      <h1 class="slide-title">Embedded in <span>LINE</span> — Zero App Downloads</h1>
+
+      <div class="grid-3">
+        <div class="card">
+          <h3>📱 LINE Flex Cards</h3>
+          <p>Interactive bubbles, travel fairness charts, venue carousels, and reservation ticket cards rendered directly in the group chat.</p>
+        </div>
+        <div class="card">
+          <h3>⚡ GMI Cloud GPU</h3>
+          <p>Powered by Qwen3.8-Flash on GMI Cloud's H100 infrastructure, optimized with parallel execution for responsive interaction.</p>
+        </div>
+        <div class="card">
+          <h3>☁️ Google Cloud Ready</h3>
+          <p>FastAPI backend configured for one-command deployment on Google Cloud Run with ADC authentication.</p>
+        </div>
+      </div>
+
+      <div class="speaker-box">
+        <div class="speaker-box-header">
+          <span class="speaker-tag">🗣️ Speaker Script:</span>
+        </div>
+        <div class="speaker-en">
+          "Users do not need to download another app or sign up for accounts. Everything happens seamlessly inside their existing LINE group chat via Flex Messages."
+        </div>
+        <div class="speaker-ja-pill">
+          <div class="speaker-ja-text">「ユーザーは新しいアプリを入れる必要はありません。いつものLINEグループ内で、美しいカードUIを通じて直感的に完結します。」</div>
+          <div class="speaker-ja-romaji">"User wa atarashii app wo ireru hitsuyou wa arimasen. Itsumo no LINE group nai de, utsukushii card UI wo tsuujite chokkanteki ni kanketsu shimasu."</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: Live Demo Call-to-Action -->
+    <section class="slide">
+      <div class="slide-category">Criterion 5: High-Impact Demo (一目で伝わるデモ)</div>
+      <h1 class="slide-title">Let's Watch the <span>Live Demo</span>!</h1>
+
+      <div class="grid-3" style="margin-bottom: 24px;">
+        <div class="card" style="border-color: #06C755;">
+          <h3>1. Instant Chat Extraction</h3>
+          <p>Watch 4 friends with different origins chat naturally in LINE.</p>
+        </div>
+        <div class="card" style="border-color: #38BDF8;">
+          <h3>2. Ekispert Midpoint Card</h3>
+          <p>See the calculated midpoint station and travel time fairness bars.</p>
+        </div>
+        <div class="card" style="border-color: #FBBF24;">
+          <h3>3. Autonomous Phone Call</h3>
+          <p>Hear the AI agent dial the restaurant and book the table in Japanese!</p>
+        </div>
+      </div>
+
+      <div style="text-align: center;">
+        <a href="/" target="_blank" class="btn-demo" style="font-size: 16px; padding: 12px 30px; display: inline-block;">
+          ▶ Open Live Demo
+        </a>
+      </div>
+
+      <div class="speaker-box">
+        <div class="speaker-box-header">
+          <span class="speaker-tag">🗣️ Final Transition (Say this to launch the demo):</span>
+        </div>
+        <div class="speaker-en">
+          "Now, let's watch AsobiAgent in action with a live LINE demonstration!"
+        </div>
+        <div class="speaker-ja-pill">
+          <div class="speaker-ja-text">「それでは、実際にLINE上で動くAsobiAgentのデモ実演をご覧ください！」</div>
+          <div class="speaker-ja-romaji">"Soredewa, jissai ni LINE-jou de ugoku AsobiAgent no demo jitsuen wo goran kudasai!"</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const indicator = document.getElementById('slideIndicator');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    let current = 0;
+
+    function showSlide(idx) {
+      if (idx < 0) idx = 0;
+      if (idx >= slides.length) idx = slides.length - 1;
+      slides[current].classList.remove('active');
+      current = idx;
+      slides[current].classList.add('active');
+      indicator.textContent = `${current + 1} / ${slides.length}`;
+    }
+
+    prevBtn.addEventListener('click', () => showSlide(current - 1));
+    nextBtn.addEventListener('click', () => showSlide(current + 1));
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+        showSlide(current + 1);
+      } else if (e.key === 'ArrowLeft') {
+        showSlide(current - 1);
+      }
+    });
+  </script>
+</body>
+</html>
