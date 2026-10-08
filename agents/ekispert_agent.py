@@ -1,47 +1,54 @@
 """
-Agent 2: Station Midpoint & Route Balancer (駅すぱあと Integration)
-Calculates a fair central station balancing travel times across all group members.
-Strictly operates without timetable/schedule search APIs (ダイヤ情報不使用).
-Uses Ekispert MCP range search and topological average routes.
+Agent 2: the fairest station to meet at.
+
+One Ekispert range search returns every station that all members can reach, with each member's average
+travel time (no timetable). The winner has the smallest worst-case trip, then the smallest gap between
+the fastest and slowest member, then the lowest average.
 """
 
-from typing import Dict, Any
+from typing import Any, Optional
+
 from services.ekispert_client import EkispertClient
 
-class EkispertAgent:
-    def __init__(self, ekispert: EkispertClient):
-        self.ekispert = ekispert
 
-    async def calculate_fair_hub(self, member_origins: Dict[str, str]) -> Dict[str, Any]:
-        """
-        Takes: {"佐藤": "横浜", "鈴木": "吉祥寺", "田中": "中目黒"}
-        Returns:
-        {
-            "hub_station": "恵比寿",
-            "fairness_score": 96,
-            "max_travel_time": 28,
-            "avg_travel_time": 22.3,
-            "spread_minutes": 6,
-            "members": { ... },
-            "explanation": "全員の移動時間が20〜28分に収まり、移動格差が最も少ない最適駅です。"
-        }
-        """
-        hub_data = await self.ekispert.find_fair_midpoint(member_origins)
-        
-        hub_station = hub_data.get("hub_station", "恵比寿")
-        spread = hub_data.get("spread_minutes", 10)
-        avg = hub_data.get("avg_travel_time", 25)
-        
-        # Build explanation
-        members = hub_data.get("members", {})
-        breakdown = []
-        for name, info in members.items():
-            breakdown.append(f"{name}様（{info.get('origin')}発）: 約{info.get('travel_time')}分（乗換{info.get('transfers')}回）")
-        
-        explanation = (
-            f"「{hub_station}駅」は全員の平均移動時間が約{avg}分、"
-            f"最大時間差もわずか{spread}分以内で最も公平なハブ駅です。"
-            f"（{'、'.join(breakdown)}）"
-        )
-        hub_data["explanation"] = explanation
-        return hub_data
+def _score(point: dict[str, Any]) -> tuple:
+    minutes = point["minutes"]
+    return (max(minutes), max(minutes) - min(minutes), sum(minutes) / len(minutes), sum(point["transfers"]))
+
+
+async def find_hub(ekispert: EkispertClient, stations: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    """`stations` are the members' resolved stations (name, code). Returns the hub, or None."""
+    unique: dict[str, dict[str, Any]] = {}
+    for st in stations:
+        unique.setdefault(st["name"], st)
+    names = list(unique)
+    if len(names) == 1:
+        only = unique[names[0]]
+        return {"name": only["name"], "code": only["code"], "minutes": {only["name"]: 0},
+                "transfers": {only["name"]: 0}, "max": 0, "spread": 0, "avg": 0, "alternatives": [],
+                "upper_minutes": 0}
+
+    points: list[dict[str, Any]] = []
+    upper = 0
+    for upper in (45, 60, 90):
+        points = await ekispert.search_ranges(names, upper_minutes=upper)
+        if points:
+            break
+    if not points:
+        return None
+
+    ranked = sorted(points, key=_score)
+    best = ranked[0]
+    minutes = dict(zip(names, best["minutes"]))
+    transfers = dict(zip(names, best["transfers"]))
+    return {
+        "name": best["name"],
+        "code": best["code"],
+        "minutes": minutes,
+        "transfers": transfers,
+        "max": max(best["minutes"]),
+        "spread": max(best["minutes"]) - min(best["minutes"]),
+        "avg": round(sum(best["minutes"]) / len(best["minutes"]), 1),
+        "alternatives": [p["name"] for p in ranked[1:3]],
+        "upper_minutes": upper,
+    }

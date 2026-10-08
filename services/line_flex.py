@@ -1,323 +1,252 @@
 """
-LINE Flex Message Builder
-Generates valid LINE Flex Message JSON objects for LINE Messaging API.
-Styled cleanly for both real LINE chats and the Web Simulator.
+LINE message builders for every phase of a group plan (see the AsobiAgent Group Flow wireframe).
+
+Buttons that change state are postbacks with a displayText, so a tap shows up in the chat as the
+person's own message and the bot can stay quiet until something actually changes.
 """
 
-from typing import List, Dict, Any
+from typing import Any, Optional
+from urllib.parse import urlencode
 
-def create_schedule_summary_flex(members: List[str], origins: Dict[str, str], date_time: str, preference: str) -> Dict[str, Any]:
-    """Summary of group availability, origins, and preferences."""
-    member_boxes = []
-    for m in members:
-        orig = origins.get(m, "未定")
-        member_boxes.append({
-            "type": "box",
-            "layout": "horizontal",
-            "contents": [
-                {"type": "text", "text": f"👤 {m}", "size": "sm", "color": "#555555", "flex": 3},
-                {"type": "text", "text": f"📍 出発: {orig}駅", "size": "sm", "color": "#111111", "weight": "bold", "flex": 4, "align": "end"}
-            ]
-        })
+from bot.text_parse import short_station
+from services.hotpepper_client import CREDIT_TEXT, CREDIT_URL
 
-    return {
-        "type": "flex",
-        "altText": "【AsobiAgent】スケジュール・出発駅を確認しました",
-        "contents": {
-            "type": "bubble",
-            "size": "mega",
-            "header": {
-                "type": "box",
-                "layout": "vertical",
-                "backgroundColor": "#06C755",
-                "paddingAll": "15px",
-                "contents": [
-                    {"type": "text", "text": "AsobiAgent スケジュール同期", "weight": "bold", "color": "#FFFFFF", "size": "sm"},
-                    {"type": "text", "text": "🎯 グループ希望を抽出しました", "weight": "bold", "color": "#FFFFFF", "size": "lg", "margin": "xs"}
-                ]
-            },
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "md",
-                "contents": [
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "backgroundColor": "#F7F9FA",
-                        "paddingAll": "12px",
-                        "cornerRadius": "8px",
-                        "contents": [
-                            {"type": "text", "text": f"📅 希望日時: {date_time}", "size": "sm", "weight": "bold", "color": "#1A365D"},
-                            {"type": "text", "text": f"🍴 気分・希望: {preference}", "size": "sm", "color": "#4A5568", "margin": "xs"}
-                        ]
-                    },
-                    {
-                        "type": "text",
-                        "text": "メンバー出発地:",
-                        "size": "xs",
-                        "color": "#888888",
-                        "weight": "bold",
-                        "margin": "sm"
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "spacing": "xs",
-                        "contents": member_boxes
-                    }
-                ]
-            },
-            "footer": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": "⚡ 駅すぱあとAPIで全員の中間駅を公平に計算中...",
-                        "size": "xs",
-                        "color": "#06C755",
-                        "align": "center",
-                        "weight": "bold"
-                    }
-                ]
-            }
-        }
-    }
+GREEN = "#06C755"
+INK = "#1A2130"
+MUTED = "#6A7486"
+LINE_GREY = "#E3E8EF"
+ACCENT = "#2D58A6"
+WARN = "#A9590B"
+CROWD_COLORS = {"低": "#25704B", "中": "#8A6D1F", "高": "#A9590B"}
 
-def create_midpoint_flex(hub_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Flex message displaying the optimal fair midpoint station and member travel times."""
-    hub_station = hub_data.get("hub_station", "渋谷")
-    fairness = hub_data.get("fairness_score", 95)
-    members = hub_data.get("members", {})
-    alternatives = hub_data.get("alternatives", [])
 
-    member_rows = []
-    for name, info in members.items():
-        time_min = info.get("travel_time", 25)
-        transfers = info.get("transfers", 0)
-        orig = info.get("origin", "")
-        lines = " / ".join(info.get("lines", []))
-        member_rows.append({
-            "type": "box",
-            "layout": "vertical",
-            "margin": "md",
-            "backgroundColor": "#F8FAFC",
-            "paddingAll": "10px",
-            "cornerRadius": "6px",
-            "contents": [
-                {
-                    "type": "box",
-                    "layout": "horizontal",
-                    "contents": [
-                        {"type": "text", "text": f"{name}（{orig}）", "weight": "bold", "size": "sm", "color": "#2D3748", "flex": 5},
-                        {"type": "text", "text": f"⏱ 約{time_min}分", "weight": "bold", "size": "sm", "color": "#06C755", "align": "end", "flex": 3}
-                    ]
-                },
-                {
-                    "type": "text",
-                    "text": f"乗換{transfers}回 • {lines[:25]}",
-                    "size": "xxs",
-                    "color": "#718096",
-                    "margin": "xs"
-                }
-            ]
-        })
+# ---- primitives -------------------------------------------------------------------------------
 
-    alt_text = f"候補駅: {' / '.join(alternatives[:3])}" if alternatives else ""
+def text(value: str, size: str = "sm", weight: Optional[str] = None, color: Optional[str] = None,
+         wrap: bool = True, margin: Optional[str] = None, flex: Optional[int] = None,
+         align: Optional[str] = None) -> dict:
+    node: dict[str, Any] = {"type": "text", "text": value or " ", "size": size, "wrap": wrap}
+    if weight:
+        node["weight"] = weight
+    if color:
+        node["color"] = color
+    if margin:
+        node["margin"] = margin
+    if flex is not None:
+        node["flex"] = flex
+    if align:
+        node["align"] = align
+    return node
 
-    return {
-        "type": "flex",
-        "altText": f"【AsobiAgent】公平な中間駅は「{hub_station}駅」です",
-        "contents": {
-            "type": "bubble",
-            "size": "giga",
-            "header": {
-                "type": "box",
-                "layout": "vertical",
-                "backgroundColor": "#1E293B",
-                "paddingAll": "15px",
-                "contents": [
-                    {"type": "text", "text": "駅すぱあと (Ekispert) 中間地点バランサー", "color": "#38BDF8", "size": "xs", "weight": "bold"},
-                    {
-                        "type": "box",
-                        "layout": "horizontal",
-                        "margin": "sm",
-                        "contents": [
-                            {"type": "text", "text": f"🚉 最適駅: {hub_station}駅", "color": "#FFFFFF", "size": "xl", "weight": "bold", "flex": 7},
-                            {"type": "text", "text": f"公平度: {fairness}点", "color": "#FACC15", "size": "sm", "align": "end", "weight": "bold", "flex": 3}
-                        ]
-                    },
-                    {"type": "text", "text": "※ダイヤ情報不使用・平均移動時間で公平に算出", "color": "#94A3B8", "size": "xxs", "margin": "xs"}
-                ]
-            },
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {"type": "text", "text": "全員の移動時間バランス（公平差 ±5分以内）:", "size": "xs", "color": "#64748B", "weight": "bold"},
-                    {"type": "box", "layout": "vertical", "contents": member_rows},
-                    {
-                        "type": "text",
-                        "text": alt_text,
-                        "size": "xxs",
-                        "color": "#94A3B8",
-                        "margin": "md",
-                        "align": "center"
-                    }
-                ]
-            },
-            "footer": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "button",
-                        "style": "primary",
-                        "color": "#06C755",
-                        "action": {
-                            "type": "postback",
-                            "label": f"✨ {hub_station}駅周辺の穴場スポットを探す",
-                            "data": f"action=find_spots&station={hub_station}"
-                        }
-                    }
-                ]
-            }
-        }
-    }
 
-def create_venues_carousel_flex(hub_station: str, venues: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Carousel Flex message showing 2-3 crowd-avoidance curated venues."""
-    bubbles = []
-    for idx, v in enumerate(venues):
-        name = v.get("name", "穴場レストラン")
-        genre = v.get("genre", "ダイニング")
-        crowd_level = v.get("crowd_level", "混雑度: 低 (穴場 ⭐⭐⭐)")
-        walk_min = v.get("walk_min", 4)
-        budget = v.get("budget", "¥3,000〜¥4,500")
-        crowd_reason = v.get("crowd_reason", "路地裏の隠れ家で週末でも席間隔が広く落ち着く空間")
-        rating = v.get("rating", 4.4)
-        v_id = v.get("id", f"venue_{idx+1}")
+def box(contents: list[dict], layout: str = "vertical", spacing: Optional[str] = None,
+        margin: Optional[str] = None, **extra: Any) -> dict:
+    node: dict[str, Any] = {"type": "box", "layout": layout, "contents": contents}
+    if spacing:
+        node["spacing"] = spacing
+    if margin:
+        node["margin"] = margin
+    node.update(extra)
+    return node
 
-        bubble = {
-            "type": "bubble",
-            "size": "mega",
-            "header": {
-                "type": "box",
-                "layout": "vertical",
-                "backgroundColor": "#0F172A",
-                "contents": [
-                    {"type": "text", "text": f"✨ 混雑回避おすすめ #{idx+1}", "color": "#F59E0B", "size": "xs", "weight": "bold"},
-                    {"type": "text", "text": name, "color": "#FFFFFF", "size": "md", "weight": "bold", "margin": "xs"}
-                ]
-            },
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "sm",
-                "contents": [
-                    {
-                        "type": "box",
-                        "layout": "horizontal",
-                        "contents": [
-                            {"type": "text", "text": f"📍 {hub_station}駅 徒歩{walk_min}分", "size": "xs", "color": "#475569", "flex": 5},
-                            {"type": "text", "text": f"★ {rating}", "size": "xs", "color": "#F59E0B", "weight": "bold", "align": "end", "flex": 2}
-                        ]
-                    },
-                    {
-                        "type": "box",
-                        "layout": "horizontal",
-                        "contents": [
-                            {"type": "text", "text": f"🍴 {genre}", "size": "xs", "color": "#475569", "flex": 1},
-                            {"type": "text", "text": f"💰 {budget}", "size": "xs", "color": "#475569", "align": "end", "flex": 1}
-                        ]
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "backgroundColor": "#ECFDF5",
-                        "paddingAll": "8px",
-                        "cornerRadius": "6px",
-                        "contents": [
-                            {"type": "text", "text": f"🌿 {crowd_level}", "size": "xs", "weight": "bold", "color": "#059669"},
-                            {"type": "text", "text": f"💡 {crowd_reason}", "size": "xxs", "color": "#065F46", "wrap": True, "margin": "xs"}
-                        ]
-                    }
-                ]
-            },
-            "footer": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "button",
-                        "style": "primary",
-                        "color": "#06C755",
-                        "height": "sm",
-                        "action": {
-                            "type": "postback",
-                            "label": "🤖 自律AI電話で予約を依頼する",
-                            "data": f"action=reserve&venue_id={v_id}&venue_name={name}"
-                        }
-                    }
-                ]
-            }
-        }
-        bubbles.append(bubble)
 
-    return {
-        "type": "flex",
-        "altText": f"【AsobiAgent】{hub_station}駅周辺の混雑回避スポット提案",
-        "contents": {
-            "type": "carousel",
-            "contents": bubbles
-        }
-    }
+def postback(label: str, data: dict[str, str], display: Optional[str] = None, style: str = "primary") -> dict:
+    action: dict[str, Any] = {"type": "postback", "label": label[:40], "data": urlencode(data)[:300]}
+    if display:
+        action["displayText"] = display[:300]
+    button: dict[str, Any] = {"type": "button", "action": action, "style": style, "height": "sm"}
+    if style == "primary":
+        button["color"] = GREEN
+    return button
 
-def create_reservation_ticket_flex(venue_name: str, date_time: str, pax: int, organizer: str, booking_id: str) -> Dict[str, Any]:
-    """Confirmation ticket once Agent 4 executes the voice booking call."""
-    return {
-        "type": "flex",
-        "altText": f"【AsobiAgent】{venue_name}の予約が完了しました！",
-        "contents": {
-            "type": "bubble",
-            "size": "mega",
-            "header": {
-                "type": "box",
-                "layout": "vertical",
-                "backgroundColor": "#06C755",
-                "paddingAll": "15px",
-                "contents": [
-                    {"type": "text", "text": "AsobiAgent 自律予約エージェント", "color": "#FFFFFF", "size": "xs", "weight": "bold"},
-                    {"type": "text", "text": "✅ 予約が確定しました！", "color": "#FFFFFF", "size": "lg", "weight": "bold", "margin": "xs"}
-                ]
-            },
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "md",
-                "contents": [
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "backgroundColor": "#F8FAFC",
-                        "paddingAll": "12px",
-                        "cornerRadius": "8px",
-                        "contents": [
-                            {"type": "text", "text": venue_name, "size": "md", "weight": "bold", "color": "#1E293B"},
-                            {"type": "text", "text": f"📅 日時: {date_time}", "size": "sm", "color": "#475569", "margin": "xs"},
-                            {"type": "text", "text": f"👥 人数: {pax}名様（代表者: {organizer}様）", "size": "sm", "color": "#475569", "margin": "xs"},
-                            {"type": "text", "text": f"🎫 予約番号: #{booking_id}", "size": "xs", "color": "#06C755", "weight": "bold", "margin": "xs"}
-                        ]
-                    },
-                    {
-                        "type": "text",
-                        "text": "📞 AIエージェントが店舗へ自動架電し、席予約を完了しました。",
-                        "size": "xxs",
-                        "color": "#64748B",
-                        "align": "center"
-                    }
-                ]
-            }
-        }
-    }
+
+def link(label: str, uri: str, style: str = "secondary") -> dict:
+    button: dict[str, Any] = {"type": "button", "action": {"type": "uri", "label": label[:40], "uri": uri},
+                              "style": style, "height": "sm"}
+    if style == "primary":
+        button["color"] = GREEN
+    return button
+
+
+def bubble(body: list[dict], footer: Optional[list[dict]] = None, hero: Optional[dict] = None,
+           size: str = "kilo") -> dict:
+    node: dict[str, Any] = {"type": "bubble", "size": size,
+                            "body": box(body, spacing="sm", paddingAll="14px")}
+    if hero:
+        node["hero"] = hero
+    if footer:
+        node["footer"] = box(footer, spacing="sm", paddingAll="10px")
+    return node
+
+
+def flex(alt: str, contents: dict) -> dict:
+    return {"type": "flex", "altText": alt[:400], "contents": contents}
+
+
+def plain(value: str) -> dict:
+    return {"type": "text", "text": value[:5000]}
+
+
+def kicker(value: str) -> dict:
+    return text(value, size="xxs", color=MUTED)
+
+
+def title(value: str, size: str = "md") -> dict:
+    return text(value, size=size, weight="bold", color=INK)
+
+
+def rows(pairs: list[tuple[str, str]]) -> dict:
+    return box([box([text(k, size="xs", color=MUTED, flex=2), text(v, size="xs", color=INK, flex=3)],
+                    layout="horizontal", spacing="sm") for k, v in pairs], spacing="xs", margin="md")
+
+
+def note(value: str, color: str = MUTED) -> dict:
+    return text(value, size="xxs", color=color, margin="md")
+
+
+# ---- phase 0–1: activation ----------------------------------------------------------------------
+
+def welcome() -> dict:
+    return flex("AsobiAgentが参加しました。認証済みのメンバーが有効化してください。", bubble(
+        [kicker("はじめまして"), title("AsobiAgentが参加しました"),
+         text("このグループで使うには、認証済みのメンバーが有効化してください。", margin="md"),
+         note("有効化されるまで、トークは一切読み取りません。")],
+        [postback("有効化する", {"a": "activate"}, "有効化する")]))
+
+
+def activated(plans: int, searches: int, until: str) -> dict:
+    return flex("AsobiAgentが使えるようになりました。", bubble(
+        [kicker("有効化"), title("使えるようになりました"),
+         rows([("決められるお店", f"{plans}軒"), ("検索", f"{searches}回まで"), ("期限", f"{until}まで")]),
+         note("予定を立てるときは @AsobiAgent で呼ぶか、下のボタンを押してください。")],
+        [postback("プランを立てる", {"a": "start"}, "プランを立てる")]))
+
+
+# ---- phase 2–3: gathering and ready check -------------------------------------------------------
+
+def gathering(nonce: str, max_participants: int) -> dict:
+    return flex("参加する人はボタンを押して、出発駅を送ってください。", bubble(
+        [kicker("募集中"), title("参加する人はボタンを押して、出発駅を送ってください"),
+         text("例：「横浜から」", size="xs", color=MUTED, margin="md"),
+         note(f"募集中は、参加した人のメッセージだけを読み取ります（最大{max_participants}人）。")],
+        [postback("参加する", {"a": "join", "p": nonce}, "参加する"),
+         postback("今回はパス", {"a": "pass", "p": nonce}, "今回はパス", style="secondary")]))
+
+
+def ready_check(nonce: str, people: list[tuple[str, Optional[str]]], when: Optional[str]) -> dict:
+    station_rows = [(name, short_station(station) if station else "未入力") for name, station in people]
+    when_row = [("日時", when)] if when else [("日時", "未定")]
+    body = [kicker("確認"), title("全員の出発駅がそろいました"), rows(station_rows + when_row)]
+    if not when:
+        body.append(note("日時が決まっていれば「土曜13時」のように送ってください。", color=WARN))
+    body.append(note("全員がOKすると検索を始めます。幹事は「もう探して」で先に進められます。"))
+    return flex("全員の出発駅がそろいました。内容を確認してOKを押してください。", bubble(body, [
+        postback("✅ これでOK", {"a": "ready", "p": nonce}, "✅ OK"),
+        postback("駅を直す", {"a": "fix", "p": nonce}, "駅を直す", style="secondary"),
+        postback("もう探して（幹事）", {"a": "force", "p": nonce}, "もう探して", style="secondary"),
+    ]))
+
+
+# ---- phase 4: meeting station -------------------------------------------------------------------
+
+def _bar(name: str, minutes: int, scale: int) -> dict:
+    pct = max(4, min(100, round(minutes / scale * 100)))
+    return box([
+        text(name, size="xxs", color=INK, flex=4),
+        box([box([], width=f"{pct}%", height="6px", backgroundColor=ACCENT, cornerRadius="3px")],
+            flex=5, height="6px", backgroundColor=LINE_GREY, cornerRadius="3px", justifyContent="center"),
+        text(f"{minutes}分", size="xxs", color=INK, flex=2, align="end"),
+    ], layout="horizontal", spacing="sm", alignItems="center")
+
+
+def hub_card(hub: dict, people: list[tuple[str, str, int]], summary: str) -> dict:
+    scale = max(10, ((max((m for _, _, m in people), default=0) + 9) // 10) * 10)
+    hub_name = short_station(hub["name"])
+    body = [kicker("集合駅"), text(hub_name, size="xxl", weight="bold", color=INK),
+            text(f"移動時間の差は最大{hub['spread']}分です。", size="sm", margin="sm"),
+            box([_bar(f"{name}・{short_station(station)}", minutes, scale) for name, station, minutes in people],
+                spacing="sm", margin="md")]
+    if summary:
+        body.append(rows([("希望", summary)]))
+    body.append(note("駅すぱあとの平均所要時間で計算しています（時刻表は使っていません）。"))
+    return flex(f"集合駅は{hub_name}です。", bubble(body, size="mega"))
+
+
+# ---- phase 5: venues and vote -------------------------------------------------------------------
+
+def _venue_bubble(nonce: str, label: str, shop: dict, pick: dict) -> dict:
+    crowd = pick.get("crowd") or {"level": "中"}
+    level = crowd.get("level", "中")
+    walk = f"徒歩約{pick['walk_min']}分" if pick.get("walk_min") else (shop.get("station_name") or "")
+    body = [
+        text(f"{label}  {shop['name']}", size="md", weight="bold", color=INK),
+        text(" · ".join(x for x in (shop.get("genre"), walk) if x), size="xs", color=MUTED),
+        text(f"予算 {shop.get('budget_average') or shop.get('budget') or '—'}", size="xs", color=INK),
+        text(f"混雑度（推定）{level}", size="xs", weight="bold", color=CROWD_COLORS.get(level, INK)),
+        text(pick.get("reason") or "", size="xs", color=INK, margin="sm"),
+        text(CREDIT_TEXT, size="xxs", color=MUTED, margin="md"),
+    ]
+    hero = None
+    if shop.get("photo"):
+        hero = {"type": "image", "url": shop["photo"], "size": "full", "aspectRatio": "20:13", "aspectMode": "cover"}
+    footer = [postback(f"{label}に投票", {"a": "vote", "p": nonce, "v": shop["id"]}, f"🗳 {label}に投票")]
+    if shop.get("url"):
+        footer.append(link("お店の詳細", shop["url"]))
+    return bubble(body, footer, hero=hero)
+
+
+def venues_carousel(nonce: str, shops: list[dict], picks: list[dict], labels: list[str],
+                    more_left: int, searches_left: int) -> dict:
+    bubbles = [_venue_bubble(nonce, label, shop, pick) for label, shop, pick in zip(labels, shops, picks)]
+    options: list[dict] = []
+    if more_left > 0:
+        options.append(postback(f"ほかの3軒（あと{more_left}回）", {"a": "more", "p": nonce}, "ほかの候補を見る",
+                                style="secondary"))
+    if searches_left > 0:
+        options += [
+            postback("もっと安く", {"a": "refine", "p": nonce, "r": "cheaper"}, "もっと安いお店がいい", style="secondary"),
+            postback("個室がいい", {"a": "refine", "p": nonce, "r": "private"}, "個室がいい", style="secondary"),
+            postback("駅の近く", {"a": "refine", "p": nonce, "r": "near"}, "駅の近くがいい", style="secondary"),
+        ]
+    options.append(postback("投票を締め切る（幹事）", {"a": "close", "p": nonce}, "投票を締め切る", style="link"))
+    tail_body = [kicker("候補を変える"), title("ほかの希望はありますか？"),
+                 text("「@AsobiAgent 和食がいい」のように送っても探し直せます。", size="xs", color=MUTED, margin="md"),
+                 note(f"条件を変えて探せるのはあと{searches_left}回です。" if searches_left > 0
+                      else "このグループの検索回数を使い切りました。今の候補から選んでください。")]
+    bubbles.append(bubble(tail_body, options))
+    return flex("お店の候補です。気に入ったお店に投票してください。", {"type": "carousel", "contents": bubbles})
+
+
+# ---- phase 6: decision --------------------------------------------------------------------------
+
+def decision_card(shop: dict, when: Optional[str], pax: int, walk_min: Optional[int],
+                  hub_name: str, agent_url: Optional[str]) -> dict:
+    hub_name = short_station(hub_name)
+    place = f"{hub_name}駅から徒歩約{walk_min}分" if walk_min else f"{hub_name}駅の近く"
+    body = [kicker("決定"), text(shop["name"], size="xl", weight="bold", color=INK),
+            rows([("日時", when or "未定"), ("人数", f"{pax}名"), ("場所", place)]),
+            text("まだ予約は完了していません。", size="sm", weight="bold", color=WARN, margin="md"),
+            note(CREDIT_TEXT)]
+    footer = []
+    if shop.get("url"):
+        footer.append(link("ホットペッパーで予約", shop["url"], style="primary"))
+    if agent_url:
+        footer.append(link("AIに入力を任せる（デモ）", agent_url))
+    return flex(f"{shop['name']}に決まりました。まだ予約は完了していません。", bubble(body, footer or None, size="mega"))
+
+
+def script_card(script: dict, phone: Optional[str], shop_url: Optional[str]) -> dict:
+    body = [kicker("電話で予約する場合"), title("電話用の台本")]
+    body += [text(line, size="sm", color=INK, margin="md") for line in script["lines"]]
+    body.append(note(f"満席なら：{script['if_full']}"))
+    footer = []
+    if phone:
+        digits = "".join(ch for ch in phone if ch.isdigit() or ch == "+")
+        footer.append(link(f"📞 {phone} に電話", f"tel:{digits}", style="primary"))
+    elif shop_url:
+        footer.append(link("お店のページで電話番号を見る", shop_url))
+    return flex("電話で予約するときの台本です。", bubble(body, footer or None, size="mega"))
+
+
+def credit_link() -> dict:
+    return link(CREDIT_TEXT, CREDIT_URL, style="link")

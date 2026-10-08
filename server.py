@@ -1,159 +1,106 @@
 """
-AsobiAgent Backend Server (FastAPI)
-Provides:
-- Webhook for real LINE Messaging API
-- Interactive REST API for the Hackathon Live Simulator UI
-- Multi-Agent state & telemetry streams
+AsobiAgent server (FastAPI).
+
+- POST /webhook          LINE Messaging API webhook (signature-checked)
+- /api/*                 web simulator (public replay; free-text chat needs the admin token)
+- /agent/*, /demo-venue  form agent demo pages
+- /                      simulator page and pitch decks
 """
 
+import json
+import logging
 import os
-from typing import Dict, Any, Optional
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.staticfiles import StaticFiles
+from typing import Optional
+
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from dotenv import load_dotenv
+from fastapi.staticfiles import StaticFiles
 
-from agents.orchestrator import AsobiOrchestrator
+from bot.deps import Deps, build_deps
+from bot.handler import handle_payload
+from config import get_settings
+from services.line_api import HttpLineApi, RecordingLineApi, verify_signature
+from services.store import MemoryStore
+from web import agent_pages, simulator
 
-load_dotenv()
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("server")
 
-app = FastAPI(title="AsobiAgent - Autonomous Multi-Agent Concierge")
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-orchestrator = AsobiOrchestrator()
+def default_deps() -> Deps:
+    settings = get_settings()
+    if settings.store_backend == "firestore":
+        from services.firestore_store import FirestoreStore
+        store = FirestoreStore(project=settings.gcp_project or None)
+    else:
+        store = MemoryStore()
+    line = HttpLineApi(settings.line_channel_access_token) if settings.line_channel_access_token else RecordingLineApi()
+    deps = build_deps(settings, store, line)
+    if settings.form_agent_mode == "job" and settings.gcp_project:
+        from agents.form_agent import CloudRunJobRunner
+        deps.form_agent = CloudRunJobRunner(settings.gcp_project, settings.region, settings.form_agent_job)
+    elif settings.form_agent_mode == "local":
+        from agents.form_agent import LocalRunner
+        deps.form_agent = LocalRunner(store, deps.llm, deps.base_url())
+    return deps
 
-# Request models
-class ChatMessageRequest(BaseModel):
-    sender: str
-    text: str
 
-class ReservationRequest(BaseModel):
-    venue_id: str
-    organizer: Optional[str] = "佐藤"
+def create_app(deps: Optional[Deps] = None) -> FastAPI:
+    app = FastAPI(title="AsobiAgent", docs_url=None, redoc_url=None, openapi_url=None)
+    app.state.deps = deps or default_deps()
+    app.include_router(simulator.router)
+    app.include_router(agent_pages.router)
 
-class ScenarioRequest(BaseModel):
-    scenario_id: str
+    @app.post("/webhook")
+    async def line_webhook(request: Request) -> JSONResponse:
+        d: Deps = request.app.state.deps
+        if not d.settings.line_channel_secret:
+            return JSONResponse({"error": "LINE is not configured"}, status_code=503)
+        body = await request.body()
+        if not verify_signature(d.settings.line_channel_secret, body, request.headers.get("x-line-signature")):
+            return JSONResponse({"error": "invalid signature"}, status_code=400)
+        try:
+            payload = json.loads(body)
+        except json.JSONDecodeError:
+            return JSONResponse({"error": "invalid body"}, status_code=400)
+        # Handled before responding: Cloud Run only guarantees CPU while a request is open.
+        await handle_payload(d, payload)
+        return JSONResponse({"ok": True})
 
-# API Endpoints
-@app.get("/api/session")
-async def get_session():
-    """Retrieve full agent pipeline state."""
-    return orchestrator.get_current_state()
+    @app.get("/healthz")
+    async def healthz() -> dict[str, str]:
+        return {"status": "ok"}
 
-@app.post("/api/reset")
-async def reset_session():
-    """Reset current demo session."""
-    orchestrator.reset_session()
-    return {"status": "reset", "state": orchestrator.get_current_state()}
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-@app.post("/api/chat")
-async def send_chat_message(req: ChatMessageRequest):
-    """Process message through Agent 1 -> Agent 2 -> Agent 3."""
-    result = await orchestrator.process_chat_message(req.sender, req.text)
-    return result
+    def _page(name: str) -> HTMLResponse:
+        path = os.path.join(STATIC_DIR, name)
+        if not os.path.exists(path):
+            return HTMLResponse("Not Found", status_code=404)
+        with open(path, encoding="utf-8") as f:
+            return HTMLResponse(f.read())
 
-@app.post("/api/reserve")
-async def execute_reservation(req: ReservationRequest):
-    """Trigger Agent 4: Autonomous Voice Reservation."""
-    result = await orchestrator.execute_reservation(req.venue_id, req.organizer or "佐藤")
-    return result
+    @app.get("/", response_class=HTMLResponse)
+    async def root() -> HTMLResponse:
+        return _page("index.html")
 
-@app.post("/api/scenario")
-async def run_preset_scenario(req: ScenarioRequest):
-    """Executes a pre-scripted multi-member conversation for 1-click live demo."""
-    orchestrator.reset_session()
-    
-    scenarios = {
-        "tokyo_meat_4": [
-            {"sender": "佐藤", "text": "みんな来週土曜日の昼13時くらいから空いてる？ご飯行こうよ！"},
-            {"sender": "鈴木", "text": "土曜13時空いてるよ！最近どこも混んでるから、渋谷や新宿の混雑は避けたいな〜"},
-            {"sender": "田中", "text": "いいね！美味しいお肉かバル系食べたい！ちなみに私「中目黒」から行くよ"},
-            {"sender": "鈴木", "text": "俺は「吉祥寺」から向かう！"},
-            {"sender": "佐藤", "text": "了解！俺は「横浜」から乗るから、みんなが来やすい場所がいいな"},
-            {"sender": "高橋", "text": "参加する！「柏」から向かうから常磐線・上野東京ライン使えると嬉しい"}
-        ],
-        "cafe_girls_3": [
-            {"sender": "美咲", "text": "今度の日曜14時にゆっくりお茶しない？"},
-            {"sender": "結衣", "text": "行きたい！落ち着いておしゃべりできる静かなカフェがいいな。私は「三軒茶屋」から行くよ"},
-            {"sender": "陽菜", "text": "賛成！私は「北千住」から日比谷線で向かうね"},
-            {"sender": "美咲", "text": "私は「恵比寿」！真ん中あたりの穴場探そう"}
-        ],
-        "craft_beer_3": [
-            {"sender": "健太", "text": "金曜日の19時に仕事終わりにクラフトビール飲みに行かない？"},
-            {"sender": "大輔", "text": "最高！俺は「大宮」から京浜東北で向かうよ"},
-            {"sender": "翔平", "text": "俺は「品川」で退勤予定！"},
-            {"sender": "健太", "text": "俺は「立川」の中央線だから、ちょうど真ん中がいいな"}
-        ]
-    }
+    @app.get("/presentation", response_class=HTMLResponse)
+    @app.get("/presentation_ja.html", response_class=HTMLResponse)
+    async def presentation_ja() -> HTMLResponse:
+        return _page("presentation_ja.html")
 
-    selected = scenarios.get(req.scenario_id, scenarios["tokyo_meat_4"])
-    
-    # Process all scenario messages in one optimized pipeline pass
-    result = await orchestrator.process_scenario_fast(selected)
+    @app.get("/presentation_en", response_class=HTMLResponse)
+    @app.get("/presentation_en.html", response_class=HTMLResponse)
+    async def presentation_en() -> HTMLResponse:
+        return _page("presentation_en.html")
 
-    return {
-        "status": "scenario_loaded",
-        "scenario_id": req.scenario_id,
-        "input_messages": selected,
-        "bot_messages": result.get("bot_messages", []),
-        "session_state": orchestrator.get_current_state()
-    }
+    return app
 
-@app.post("/webhook")
-async def line_webhook(request: Request):
-    """
-    Official LINE Messaging API Webhook endpoint.
-    Processes real Webhook events when connected to a LINE Official Account.
-    """
-    body = await request.body()
-    # If LINE credentials exist, can verify signature and reply via LINE Messaging API
-    logger_msg = f"Received LINE Webhook payload: {len(body)} bytes"
-    return {"status": "ok", "message": logger_msg}
 
-# Mount static files
-static_dir = os.path.join(os.path.dirname(__file__), "static")
-if not os.path.exists(static_dir):
-    os.makedirs(static_dir)
-
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
-
-@app.get("/")
-async def root():
-    index_path = os.path.join(static_dir, "index.html")
-    if os.path.exists(index_path):
-        with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    return HTMLResponse("<h1>AsobiAgent Backend Running</h1>")
-
-@app.get("/presentation")
-@app.get("/presentation_ja.html")
-async def presentation_ja():
-    path = os.path.join(static_dir, "presentation_ja.html")
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    return HTMLResponse("Not Found", status_code=404)
-
-@app.get("/presentation_en")
-@app.get("/presentation_en.html")
-async def presentation_en():
-    path = os.path.join(static_dir, "presentation_en.html")
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    return HTMLResponse("Not Found", status_code=404)
-
+app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("server:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=False)

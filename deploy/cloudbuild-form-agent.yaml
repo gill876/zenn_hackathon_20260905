@@ -1,0 +1,6 @@
+# Builds jobs/form_agent/Dockerfile with the repo root as context.
+# gcloud builds submit --config deploy/cloudbuild-form-agent.yaml --substitutions _IMAGE=... .
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "jobs/form_agent/Dockerfile", "-t", "${_IMAGE}", "."]
+images: ["${_IMAGE}"]

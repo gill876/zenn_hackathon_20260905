@@ -1,0 +1,17 @@
+.gcloudignore
+.git/
+.gitignore
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/
+docs/
+.DS_Store
+*.log
+presentation_en.html
+presentation_ja.html

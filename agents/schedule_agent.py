@@ -1,59 +1,129 @@
 """
-Agent 1: Natural Schedule & Intent Synchronizer
-Listens to natural language LINE group chats, extracts member availability,
-departure stations, and dining/activity preferences using GMI Qwen LLM.
+Agent 1: reads the messages held during 募集 and works out when, how many, and what kind of place.
+
+One LLM call per search. Names never reach the model: participants appear as 参加者1, 参加者2, …
+If the model is unavailable, a keyword table and the rule-based date hint fill in instead.
 """
 
-from typing import Dict, Any, List
+from typing import Any, Optional
+
+from services.hotpepper_client import BUDGETS, GENRES
 from services.llm_client import LLMClient
 
-class ScheduleAgent:
-    def __init__(self, llm: LLMClient):
-        self.llm = llm
+# Rule-based fallback: words people use → HotPepper genre code or search keyword.
+KEYWORD_GENRES = [
+    ("焼肉", "G008"), ("ホルモン", "G008"), ("カフェ", "G014"), ("お茶", "G014"), ("スイーツ", "G014"),
+    ("ラーメン", "G013"), ("イタリアン", "G006"), ("フレンチ", "G006"), ("パスタ", "G006"),
+    ("中華", "G007"), ("韓国", "G017"), ("居酒屋", "G001"), ("バル", "G002"), ("和食", "G004"),
+    ("寿司", "G004"), ("エスニック", "G009"), ("タイ料理", "G009"), ("お好み焼き", "G016"), ("もんじゃ", "G016"),
+]
+KEYWORDS = ["肉", "クラフトビール", "ビール", "ワイン", "日本酒", "海鮮", "鍋"]
+QUIET_WORDS = ["混", "静か", "落ち着", "ゆっくり", "穴場"]
 
-    async def extract_intent_and_schedule(self, chat_messages: List[Dict[str, str]]) -> Dict[str, Any]:
-        """
-        Parses list of chat messages: [{"sender": "佐藤", "text": "来週土曜13時〜 横浜から行くよ"}]
-        Returns structured info:
-        {
-            "members": ["佐藤", "鈴木", "田中"],
-            "origins": {"佐藤": "横浜", "鈴木": "吉祥寺", "田中": "中目黒"},
-            "date_time": "来週土曜日 13:00",
-            "preferences": "お肉かエスニック、混雑しない場所",
-            "pax": 3,
-            "ready_for_midpoint": True
-        }
-        """
-        chat_text = "\n".join([f"{m.get('sender')}: {m.get('text')}" for m in chat_messages])
-        
-        prompt = f"""
-Analyze this Japanese LINE group chat where friends are trying to arrange a meetup.
-Extract:
-1. "members": list of names who are participating.
-2. "origins": dictionary mapping member name -> their departure station (駅名 only, e.g. "横浜", "中目黒", "吉祥寺", "柏", "品川"). If unknown, leave empty or infer from context.
-3. "date_time": agreed or suggested date & time in clean Japanese string (e.g. "来週土曜日 13:00").
-4. "preferences": food, atmosphere, or budget preferences mentioned (e.g. "お肉・落ち着いた場所").
-5. "pax": total number of participants (integer).
-6. "ready_for_midpoint": boolean (true if at least 2 member departure stations are known).
+SYSTEM = "You extract outing plans from Japanese group chats. Answer in Japanese inside a JSON object."
 
-Group Chat:
-{chat_text}
-"""
-        system_prompt = "You are an expert NLP information extraction agent for Japanese conversations. Output strict JSON only."
-        data = await self.llm.generate_json(prompt, system_prompt)
-        
-        # Guard rails and fallbacks
-        if not data.get("members") and chat_messages:
-            senders = list(set([m.get("sender", "参加者") for m in chat_messages]))
-            data["members"] = senders
-        if not data.get("origins"):
-            data["origins"] = {}
-        if not data.get("date_time"):
-            data["date_time"] = "今週末 13:00"
-        if not data.get("preferences"):
-            data["preferences"] = "落ち着いて話せる穴場スポット"
-        if not data.get("pax"):
-            data["pax"] = len(data.get("members", [])) or 3
-            
-        data["ready_for_midpoint"] = len(data["origins"]) >= 2
-        return data
+
+def rule_based_details(messages: list[str], hint: Optional[dict[str, str]]) -> dict[str, Any]:
+    text = "\n".join(messages)
+    genre = next((code for word, code in KEYWORD_GENRES if word in text), None)
+    keyword = next((w for w in KEYWORDS if w in text), None) if genre is None else None
+    prefs = []
+    if genre:
+        prefs.append(GENRES[genre])
+    if keyword:
+        prefs.append(keyword)
+    quiet = any(w in text for w in QUIET_WORDS)
+    if quiet:
+        prefs.append("混雑を避けたい")
+    hint = hint or {}
+    return {
+        "day": hint.get("day"), "time": hint.get("time"), "meal": hint.get("meal"),
+        "preferences": prefs, "genre": genre, "budget": None, "keyword": keyword,
+        "private_room": False, "quiet": quiet, "source": "rules",
+    }
+
+
+def _clean(raw: dict[str, Any], fallback: dict[str, Any]) -> dict[str, Any]:
+    out = dict(fallback)
+    for key in ("day", "time", "meal", "keyword"):
+        value = raw.get(key)
+        if isinstance(value, str) and value.strip() and value.strip().lower() not in {"null", "none", "不明"}:
+            out[key] = value.strip()[:20]
+    if out.get("meal") not in {None, "lunch", "dinner", "cafe", "drinks"}:
+        out["meal"] = fallback.get("meal")
+    if raw.get("genre") in GENRES:
+        out["genre"] = raw["genre"]
+    if raw.get("budget") in BUDGETS:
+        out["budget"] = raw["budget"]
+    if isinstance(raw.get("preferences"), list):
+        out["preferences"] = [str(p)[:20] for p in raw["preferences"] if str(p).strip()][:5]
+    for key in ("private_room", "quiet"):
+        if isinstance(raw.get(key), bool):
+            out[key] = raw[key]
+    out["source"] = "llm"
+    return out
+
+
+async def extract_details(llm: LLMClient, messages_by_person: list[tuple[int, str]],
+                          hint: Optional[dict[str, str]]) -> dict[str, Any]:
+    texts = [t for _, t in messages_by_person]
+    fallback = rule_based_details(texts, hint)
+    if not llm.available or not messages_by_person:
+        return fallback
+    chat = "\n".join(f"参加者{n}: {t}" for n, t in messages_by_person)
+    genres = ", ".join(f"{k}={v}" for k, v in GENRES.items())
+    budgets = ", ".join(f"{k}={v}" for k, v in BUDGETS.items())
+    prompt = f"""Friends are planning to meet. Read their messages and fill this JSON:
+{{
+  "day": "day they agreed on, as written (e.g. 来週土曜, 10/18) or null",
+  "time": "HH:MM or null",
+  "meal": "lunch | dinner | cafe | drinks | null",
+  "preferences": ["short Japanese phrases for food/atmosphere wishes, max 5"],
+  "genre": "one HotPepper genre code that fits best, or null",
+  "budget": "one HotPepper budget code per person, or null if nobody mentioned money",
+  "keyword": "one short search word for a specific wish (e.g. 肉, クラフトビール) or null",
+  "private_room": true/false (someone asked for a private room),
+  "quiet": true/false (someone wants to avoid crowds or noise)
+}}
+Genre codes: {genres}
+Budget codes: {budgets}
+A rule-based reading found: {fallback.get('day')} {fallback.get('time')} (may be incomplete).
+
+Messages:
+{chat}"""
+    raw = await llm.generate_json(prompt, SYSTEM, max_tokens=500)
+    return _clean(raw, fallback) if raw else fallback
+
+
+async def refine_details(llm: LLMClient, details: dict[str, Any], request: str) -> dict[str, Any]:
+    """Apply a free-text change like 「和食がいい」 or 「もっと安く」 to the search details."""
+    fallback = dict(details)
+    rules = rule_based_details([request], None)
+    if rules["genre"]:
+        fallback["genre"], fallback["keyword"] = rules["genre"], None
+    elif rules["keyword"]:
+        fallback["keyword"] = rules["keyword"]
+    if "個室" in request:
+        fallback["private_room"] = True
+    if not llm.available:
+        return fallback
+    genres = ", ".join(f"{k}={v}" for k, v in GENRES.items())
+    budgets = ", ".join(f"{k}={v}" for k, v in BUDGETS.items())
+    prompt = f"""Current restaurant search (JSON): {details}
+The group now says: 「{request}」
+Return the updated search as the same JSON keys (day, time, meal, preferences, genre, budget, keyword,
+private_room, quiet). Change only what the request asks for.
+Genre codes: {genres}
+Budget codes: {budgets}"""
+    raw = await llm.generate_json(prompt, SYSTEM, max_tokens=400)
+    return _clean(raw, fallback) if raw else fallback
+
+
+def details_text(details: dict[str, Any]) -> str:
+    parts = []
+    when = " ".join(p for p in (details.get("day"), details.get("time")) if p)
+    if when:
+        parts.append(when)
+    if details.get("preferences"):
+        parts.append("・".join(details["preferences"][:3]))
+    return " / ".join(parts)
