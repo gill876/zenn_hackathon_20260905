@@ -13,11 +13,15 @@ import re
 from typing import Optional
 
 DAYS = "月火水木金土日"
-_DASH = "[〜～~\\-－ー―]"
+_DASH = "[〜～~\\-－ー―？?]"     # Time Out pages sometimes have ？ where 〜 was meant
+# Parentheses that only hold last-order or entry notes; other parentheses can hold day exceptions.
+_NOTE_PAREN = re.compile(r"[（(][^）)]*(?:L\.?O|ラストオーダー|入店|料理|ドリンク|最終)[^）)]*[）)]")
 _PAREN = re.compile(r"[（(][^）)]*[）)]")
 _TIME = r"(\d{1,2})(?:[:：](\d{2})|時(?:(\d{1,2})分|(半))?)?"
 _RANGE = re.compile(rf"(翌)?{_TIME}\s*{_DASH}\s*(翌)?{_TIME}")
-_DAY_PREFIX = re.compile(rf"((?:[{DAYS}](?:曜日?)?|祝日|祝前日|祝後日|[、・,]|{_DASH})+)\s*[:：]")
+_DAY_TOKEN = rf"(?:平日|祝日|祝前日|祝後日|[{DAYS}](?:曜日?)?|[、・,]|{_DASH})"
+# 「月～金:」 (HotPepper) or 「土・日曜・祝日は」 (Time Out); not the 日 in 定休日は / 毎日 / 平日.
+_DAY_PREFIX = re.compile(rf"(?<![休定毎平])((?:{_DAY_TOKEN})+?)\s*(?:[:：]|は)")
 _DAY_SPAN = re.compile(rf"([{DAYS}])(?:曜日?)?\s*{_DASH}\s*([{DAYS}])")
 
 
@@ -41,31 +45,42 @@ def parse_ranges(text: str) -> list[tuple[int, int]]:
 
 def _day_set(prefix: str) -> set[int]:
     days: set[int] = set()
+    if "平日" in prefix:
+        days.update(range(5))
+        prefix = prefix.replace("平日", "")
     for a, b in _DAY_SPAN.findall(prefix):
         i, j = DAYS.index(a), DAYS.index(b)
         days.update(range(i, j + 1) if i <= j else list(range(i, 7)) + list(range(0, j + 1)))
-    without_spans = _DAY_SPAN.sub("", prefix)
+    without_spans = _DAY_SPAN.sub("", prefix).replace("祝日", "").replace("祝前日", "").replace("祝後日", "")
     days.update(DAYS.index(ch) for ch in without_spans if ch in DAYS)
     return days
 
 
+def _clean(text: str) -> str:
+    text = _NOTE_PAREN.sub(" ", text or "")
+    return re.sub(r"[（）()]", " ", text)
+
+
 def ranges_for_day(text: str, weekday: int) -> Optional[list[tuple[int, int]]]:
-    """Opening ranges on `weekday` (0 = Monday). None when the text says nothing usable."""
-    text = _PAREN.sub(" ", text or "")
-    prefixes = list(_DAY_PREFIX.finditer(text))
+    """Opening ranges on `weekday` (0 = Monday): [] means closed that day, None means the text doesn't say.
+
+    HotPepper lists every open day with a prefix (月～金: …), so a day that isn't listed is closed.
+    Time Out writes default hours first and exceptions after (…（土・日曜は12～24時）), so a day that
+    isn't listed gets the default hours."""
+    text = _clean(text)
+    prefixes = [m for m in _DAY_PREFIX.finditer(text) if _day_set(m.group(1))]
     if not prefixes:
-        ranges = parse_ranges(text)
-        return ranges or None
+        return parse_ranges(text) or None
+    default = parse_ranges(text[:prefixes[0].start()])
     found_day = False
     ranges: list[tuple[int, int]] = []
     for i, m in enumerate(prefixes):
         segment = text[m.end(): prefixes[i + 1].start() if i + 1 < len(prefixes) else len(text)]
-        days = _day_set(m.group(1))
-        if weekday in days:
+        if weekday in _day_set(m.group(1)):
             found_day = True
             ranges += parse_ranges(segment)
     if not found_day:
-        return []          # the listed days don't include this one: closed that day
+        return default if default else []
     return ranges or None
 
 
@@ -73,7 +88,7 @@ def closed_days(text: str) -> set[int]:
     """Weekdays a shop is regularly closed, from a 定休日 / close field. Unclear text gives an empty set."""
     if not text or any(w in text for w in ("不定休", "なし", "無休", "年中無休")):
         return set()
-    m = re.search(r"定休日[はー:：\s]*([^／/。]*)", text)
+    m = re.search(r"定休日[はー:：\s]*([^／/。（(]*)", text)
     part = m.group(1) if m else text
     return _day_set(part)
 

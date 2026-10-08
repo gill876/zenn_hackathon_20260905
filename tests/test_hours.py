@@ -34,3 +34,29 @@ def test_late_night_and_unclear():
 def test_half_hours():
     assert parse_ranges("11時半〜14時半") == [(690, 870)]
     assert parse_ranges("11:30～14:00") == [(690, 840)]
+
+
+def _to(hours, weekday, hhmm):
+    open_part, close = split_time_ok(hours)
+    h, m = map(int, hhmm.split(":"))
+    return open_at(open_part, close, weekday, h * 60 + m)
+
+
+def test_real_time_out_strings():
+    WED, THU = 2, 3
+    weekend_lunch = "17～24時（土・日曜・祝日は12～24時）／定休日は不定休"
+    assert _to(weekend_lunch, SAT, "13:00") is True
+    assert _to(weekend_lunch, MON, "13:00") is False
+    assert _to(weekend_lunch, MON, "19:00") is True
+    late = "10〜17時（木～日曜は24時まで）"
+    assert _to(late, THU, "20:00") is None          # the exception gives no clear range: don't guess
+    assert _to(late, MON, "20:00") is False
+    two_blocks = ("18～22時（入店は閉店の1時間前まで）、土・日曜・祝日は11時30分？14時、18～22時"
+                  "（入店は閉店の1時間30分前まで）／定休日は木曜")
+    assert _to(two_blocks, SAT, "12:00") is True
+    assert _to(two_blocks, MON, "12:00") is False
+    assert _to(two_blocks, THU, "19:00") is False
+    assert _to("18〜24時（L.O.23時）／定休日は月・土・日曜", FRI, "19:00") is True
+    assert _to("18〜24時（L.O.23時）／定休日は月・土・日曜", SAT, "19:00") is False
+    assert _to("平日11〜15時、土日は11〜20時", SAT, "18:00") is True
+    assert _to("平日11〜15時、土日は11〜20時", WED, "18:00") is False
