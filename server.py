@@ -69,7 +69,7 @@ def create_app(deps: Optional[Deps] = None) -> FastAPI:
         await handle_payload(d, payload)
         return JSONResponse({"ok": True})
 
-    @app.get("/healthz")
+    @app.get("/health")
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
 

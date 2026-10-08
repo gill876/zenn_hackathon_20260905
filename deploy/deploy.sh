@@ -72,13 +72,13 @@ setup() {
     apikeys.googleapis.com billingbudgets.googleapis.com "${P[@]}"
 
   echo "== budgets (email alerts only; they don't stop anything)"
-  if ! gcloud billing budgets list --billing-account="$BILLING_ACCOUNT" --format="value(displayName)" | grep -q "AsobiAgent credit burn"; then
-    gcloud billing budgets create --billing-account="$BILLING_ACCOUNT" --display-name="AsobiAgent credit burn" \
+  if ! gcloud billing budgets list --billing-project="$PROJECT_ID" --billing-account="$BILLING_ACCOUNT" --format="value(displayName)" | grep -q "AsobiAgent credit burn"; then
+    gcloud billing budgets create --billing-project="$PROJECT_ID" --billing-account="$BILLING_ACCOUNT" --display-name="AsobiAgent credit burn" \
       --budget-amount=1000JPY --filter-projects="projects/${PROJECT_ID}" --credit-types-treatment=EXCLUDE_ALL_CREDITS \
       --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0
   fi
-  if ! gcloud billing budgets list --billing-account="$BILLING_ACCOUNT" --format="value(displayName)" | grep -q "AsobiAgent real money"; then
-    gcloud billing budgets create --billing-account="$BILLING_ACCOUNT" --display-name="AsobiAgent real money" \
+  if ! gcloud billing budgets list --billing-project="$PROJECT_ID" --billing-account="$BILLING_ACCOUNT" --format="value(displayName)" | grep -q "AsobiAgent real money"; then
+    gcloud billing budgets create --billing-project="$PROJECT_ID" --billing-account="$BILLING_ACCOUNT" --display-name="AsobiAgent real money" \
       --budget-amount=100JPY --filter-projects="projects/${PROJECT_ID}" --credit-types-treatment=INCLUDE_ALL_CREDITS \
       --threshold-rule=percent=1.0
   fi
