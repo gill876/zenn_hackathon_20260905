@@ -83,3 +83,15 @@ def test_form_agent_values_and_fallback_mapping():
               {"name": "tel", "label": "電話番号（任意）"}, {"name": "request", "label": "ご要望"}]
     assert rule_based_mapping(fields) == {"visit_date": "date", "visit_time": "time", "guests": "party_size",
                                           "guest_name": "name", "tel": "phone", "request": "notes"}
+
+
+def test_time_out_badge_links_without_copying_content():
+    from services.timeout_index import TimeOutIndex
+    index = TimeOutIndex([{"name": "テスト店1", "lat": 35.6994, "lng": 139.7731, "url": "https://www.timeout.jp/tokyo/ja/レストラン/x"}])
+    s = shop(1)
+    featured = index.match(s)
+    assert featured["url"].startswith("https://www.timeout.jp/")
+    picks = [{"id": s["id"], "reason": "テスト", "crowd": {"level": "低", "facts": []}, "walk_min": 3}]
+    card = json.dumps(line_flex.venues_carousel("n", [s], picks, ["A"], 0, 0, [featured]), ensure_ascii=False)
+    assert "Time Out で紹介されています" in card and "Time Outの記事" in card
+    assert index.match(shop(5)) is None   # far away

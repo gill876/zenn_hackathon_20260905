@@ -86,6 +86,10 @@ def create_app(deps: Optional[Deps] = None) -> FastAPI:
     async def root() -> HTMLResponse:
         return _page("index.html")
 
+    @app.get("/privacy", response_class=HTMLResponse)
+    async def privacy() -> HTMLResponse:
+        return _page("privacy.html")
+
     @app.get("/presentation", response_class=HTMLResponse)
     @app.get("/presentation_ja.html", response_class=HTMLResponse)
     async def presentation_ja() -> HTMLResponse:

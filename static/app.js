@@ -1,84 +1,77 @@
 /**
- * AsobiAgent Hackathon Live Demo Application
- * Handles LINE chat simulation, Multi-Agent pipeline orchestration,
- * Ekispert telemetry visualization, and Autonomous Voice Call simulation.
+ * AsobiAgent web simulator.
+ *
+ * Public visitors can replay the preset group chats: the server runs the real pipeline (Ekispert hub,
+ * HotPepper venues) with rule-based reading instead of the LLM. Free-text chat runs the full LLM
+ * pipeline and needs the admin token (open the page once with ?admin=<token>).
+ * Choosing a venue opens 予約の準備: a call script, the HotPepper page, and the demo form agent.
+ * Nothing here places a phone call or claims a booking was made.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
-  // DOM Elements
-  const chatBody = document.getElementById("chatBody");
-  const chatInput = document.getElementById("chatInput");
-  const sendBtn = document.getElementById("sendBtn");
-  const senderSelect = document.getElementById("senderSelect");
-  const scenarioSelect = document.getElementById("scenarioSelect");
-  const runScenarioBtn = document.getElementById("runScenarioBtn");
-  const resetBtn = document.getElementById("resetBtn");
+  const $ = (id) => document.getElementById(id);
+  const chatBody = $("chatBody");
+  const chatInput = $("chatInput");
+  const sendBtn = $("sendBtn");
+  const senderSelect = $("senderSelect");
+  const scenarioSelect = $("scenarioSelect");
+  const runScenarioBtn = $("runScenarioBtn");
+  const resetBtn = $("resetBtn");
+  const metricHubStation = $("metricHubStation");
+  const metricMaxTime = $("metricFairnessScore");
+  const metricSpread = $("metricSpread");
+  const metricAvgTime = $("metricAvgTime");
+  const ekispertPayloadView = $("ekispertPayloadView");
+  const fairnessBars = $("fairnessBars");
+  const llmPayloadView = $("llmPayloadView");
+  const agentLogStream = $("agentLogStream");
+  const stepBoxes = { agent_1: $("stepAgent1"), agent_2: $("stepAgent2"), agent_3: $("stepAgent3"), agent_4: $("stepAgent4") };
+  const modal = $("voiceCallModal");
+  const modalTitle = $("callVenueTitle");
+  const modalSub = $("callVenuePhone");
+  const modalBody = $("callDialogueBox");
+  const closeModalBtn = $("closeCallModalBtn");
+  const readAloud = $("enableTtsAudio");
 
-  // Tab elements
-  const tabBtns = document.querySelectorAll(".tab-btn");
-  const tabPanes = document.querySelectorAll(".tab-pane");
+  // Admin token for live free-text chat: ?admin=<token> once, then kept for this tab only.
+  try {
+    const fromUrl = new URLSearchParams(location.search).get("admin");
+    if (fromUrl) {
+      sessionStorage.setItem("asobiAdminToken", fromUrl);
+      history.replaceState(null, "", location.pathname);
+    }
+  } catch (e) { /* storage blocked: free text stays locked */ }
+  const adminToken = () => { try { return sessionStorage.getItem("asobiAdminToken") || ""; } catch (e) { return ""; } };
 
-  // Telemetry elements
-  const metricHubStation = document.getElementById("metricHubStation");
-  const metricFairnessScore = document.getElementById("metricFairnessScore");
-  const metricSpread = document.getElementById("metricSpread");
-  const metricAvgTime = document.getElementById("metricAvgTime");
-  const ekispertPayloadView = document.getElementById("ekispertPayloadView");
-  const fairnessBars = document.getElementById("fairnessBars");
-  const llmPayloadView = document.getElementById("llmPayloadView");
-  const agentLogStream = document.getElementById("agentLogStream");
+  let history_ = [];   // messages in the current simulated chat
+  let lastPlan = null; // day/time/pax/organizer from the last pipeline run
 
-  // Pipeline Step Boxes
-  const stepBoxes = {
-    agent_1: document.getElementById("stepAgent1"),
-    agent_2: document.getElementById("stepAgent2"),
-    agent_3: document.getElementById("stepAgent3"),
-    agent_4: document.getElementById("stepAgent4")
-  };
-
-  // Voice Call Modal elements
-  const voiceCallModal = document.getElementById("voiceCallModal");
-  const callVenueTitle = document.getElementById("callVenueTitle");
-  const callVenuePhone = document.getElementById("callVenuePhone");
-  const callTimer = document.getElementById("callTimer");
-  const callDialogueBox = document.getElementById("callDialogueBox");
-  const closeCallModalBtn = document.getElementById("closeCallModalBtn");
-  const enableTtsAudio = document.getElementById("enableTtsAudio");
-
-  let callTimerInterval = null;
-
-  // Tab Switching
-  tabBtns.forEach(btn => {
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const targetTab = btn.getAttribute("data-tab");
-      tabBtns.forEach(b => b.classList.remove("active"));
-      tabPanes.forEach(p => p.classList.remove("active"));
+      document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll(".tab-pane").forEach((p) => p.classList.remove("active"));
       btn.classList.add("active");
-      document.getElementById(targetTab)?.classList.add("active");
+      $(btn.getAttribute("data-tab"))?.classList.add("active");
     });
   });
 
-  // Reset Session
-  resetBtn.addEventListener("click", async () => {
-    try {
-      await fetch("/api/reset", { method: "POST" });
-      chatBody.innerHTML = '<div class="chat-date-separator"><span>今日</span></div>';
-      resetTelemetryUI();
-      addLogEntry("システムがリセットされました。");
-    } catch (e) {
-      console.error(e);
-    }
+  resetBtn.addEventListener("click", () => {
+    history_ = [];
+    lastPlan = null;
+    chatBody.innerHTML = '<div class="chat-date-separator"><span>今日</span></div>';
+    resetTelemetryUI();
+    addLogEntry("リセットしました。");
   });
 
   function resetTelemetryUI() {
     metricHubStation.textContent = "-";
-    metricFairnessScore.textContent = "-";
+    metricMaxTime.textContent = "-";
     metricSpread.textContent = "-";
     metricAvgTime.textContent = "-";
-    ekispertPayloadView.textContent = "// 駅すぱあとAPIの呼出結果がここに表示されます";
-    llmPayloadView.textContent = "// GMI LLMの推論結果がここに表示されます";
-    fairnessBars.innerHTML = '<p class="empty-hint">中間駅が算出されるとグラフが表示されます</p>';
-    Object.values(stepBoxes).forEach(sb => {
+    ekispertPayloadView.textContent = "// 駅すぱあとの探索結果がここに表示されます";
+    llmPayloadView.textContent = "// 読み取った日時・希望がここに表示されます";
+    fairnessBars.innerHTML = '<p class="empty-hint">集合駅が決まるとグラフが表示されます</p>';
+    Object.values(stepBoxes).forEach((sb) => {
       sb.className = "step-box";
       sb.querySelector(".step-status").textContent = "未実行";
     });
@@ -86,39 +79,37 @@ document.addEventListener("DOMContentLoaded", () => {
     stepBoxes.agent_1.querySelector(".step-status").textContent = "待機中";
   }
 
-  // Send User Message
+  // ---- free-text chat (admin only) ---------------------------------------------------------------
   sendBtn.addEventListener("click", () => handleSendMessage());
-  chatInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") handleSendMessage();
-  });
+  chatInput.addEventListener("keypress", (e) => { if (e.key === "Enter") handleSendMessage(); });
 
   async function handleSendMessage() {
     const text = chatInput.value.trim();
     if (!text) return;
     const sender = senderSelect.value;
     chatInput.value = "";
-
-    // Append user message immediately
     appendUserBubble(sender, text);
-
-    // Show typing status on Agent 1
-    updatePipelineStep("agent_1", "active", "解析実行中...");
-
+    history_.push({ sender, text });
+    updatePipelineStep("agent_1", "active", "解析中…");
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sender, text })
+        headers: { "Content-Type": "application/json", "X-Admin-Token": adminToken() },
+        body: JSON.stringify({ messages: history_ }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        appendSystemText(data.detail || "送信できませんでした。");
+        updatePipelineStep("agent_1", "", "未実行");
+        return;
+      }
       renderBackendResponse(data);
     } catch (err) {
-      console.error("Chat error:", err);
       appendSystemText("通信エラーが発生しました。");
     }
   }
 
-  // Client-side scenario scripts for instant visual rendering
+  // ---- preset scenarios (public) -----------------------------------------------------------------
   const clientScenarios = {
     tokyo_meat_4: [
       { sender: "佐藤", text: "みんな来週土曜日の昼13時くらいから空いてる？ご飯行こうよ！" },
@@ -126,169 +117,124 @@ document.addEventListener("DOMContentLoaded", () => {
       { sender: "田中", text: "いいね！美味しいお肉かバル系食べたい！ちなみに私「中目黒」から行くよ" },
       { sender: "鈴木", text: "俺は「吉祥寺」から向かう！" },
       { sender: "佐藤", text: "了解！俺は「横浜」から乗るから、みんなが来やすい場所がいいな" },
-      { sender: "高橋", text: "参加する！「柏」から向かうから常磐線・上野東京ライン使えると嬉しい" }
+      { sender: "高橋", text: "参加する！「柏」から向かうから常磐線・上野東京ライン使えると嬉しい" },
     ],
     cafe_girls_3: [
       { sender: "美咲", text: "今度の日曜14時にゆっくりお茶しない？" },
       { sender: "結衣", text: "行きたい！落ち着いておしゃべりできる静かなカフェがいいな。私は「三軒茶屋」から行くよ" },
       { sender: "陽菜", text: "賛成！私は「北千住」から日比谷線で向かうね" },
-      { sender: "美咲", text: "私は「恵比寿」！真ん中あたりの穴場探そう" }
+      { sender: "美咲", text: "私は「恵比寿」！真ん中あたりの穴場探そう" },
     ],
     craft_beer_3: [
       { sender: "健太", text: "金曜日の19時に仕事終わりにクラフトビール飲みに行かない？" },
       { sender: "大輔", text: "最高！俺は「大宮」から京浜東北で向かうよ" },
       { sender: "翔平", text: "俺は「品川」で退勤予定！" },
-      { sender: "健太", text: "俺は「立川」の中央線だから、ちょうど真ん中がいいな" }
-    ]
+      { sender: "健太", text: "俺は「立川」の中央線だから、ちょうど真ん中がいいな" },
+    ],
   };
 
-  // Run Preset Scenario
   runScenarioBtn.addEventListener("click", async () => {
     const scenarioId = scenarioSelect.value;
     runScenarioBtn.disabled = true;
     runScenarioBtn.textContent = "⏳ 実行中...";
     chatBody.innerHTML = '<div class="chat-date-separator"><span>今日</span></div>';
     resetTelemetryUI();
-
-    const inputMsgs = clientScenarios[scenarioId] || clientScenarios["tokyo_meat_4"];
-
-    // 1. Immediately animate messages into the chat
-    for (const msg of inputMsgs) {
+    history_ = [...(clientScenarios[scenarioId] || [])];
+    for (const msg of history_) {
       appendUserBubble(msg.sender, msg.text);
-      await new Promise(r => setTimeout(r, 220));
+      await new Promise((r) => setTimeout(r, 200));
     }
-
-    // 2. Show typing indicator and activate pipeline
-    updatePipelineStep("agent_1", "active", "会話・出発駅を解析中...");
-    const typingRow = document.createElement("div");
-    typingRow.id = "typingIndicator";
-    typingRow.className = "chat-row other-row";
-    typingRow.innerHTML = `
-      <div class="chat-avatar" style="background:#06C755; color:#fff;">🤖</div>
-      <div class="chat-bubble-container">
-        <div class="sender-name" style="color:#06C755;">AsobiAgent</div>
-        <div class="chat-bubble other" style="border: 1px dashed #06C755; color: #64748B;">
-          ⚡ 駅すぱあと中間駅・混雑回避スポットを自律計算中...
-        </div>
-      </div>
-    `;
-    chatBody.appendChild(typingRow);
-    scrollChatToBottom();
-
+    updatePipelineStep("agent_1", "active", "出発駅・日時を読み取り中…");
+    const typing = appendBotBubble("駅すぱあとで集合駅を計算して、近くのお店を探しています…", true);
     try {
       const res = await fetch("/api/scenario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scenario_id: scenarioId })
+        body: JSON.stringify({ scenario_id: scenarioId }),
       });
       const data = await res.json();
-
-      // Remove typing indicator
-      const ti = document.getElementById("typingIndicator");
-      if (ti) ti.remove();
-
-      // Render all bot cards and telemetry
+      typing.remove();
+      if (!res.ok) {
+        appendSystemText(data.detail || "実行できませんでした。");
+        return;
+      }
       renderBackendResponse(data);
     } catch (err) {
-      console.error("Scenario error:", err);
-      const ti = document.getElementById("typingIndicator");
-      if (ti) ti.remove();
+      typing.remove();
+      appendSystemText("通信エラーが発生しました。");
     } finally {
       runScenarioBtn.disabled = false;
       runScenarioBtn.textContent = "▶ シナリオ自動実行";
     }
   });
 
-
-  // Render Bot Response & Telemetry
+  // ---- rendering the pipeline result -------------------------------------------------------------
   function renderBackendResponse(data) {
     const state = data.session_state || {};
-    const botMessages = data.bot_messages || [];
-
-    // Append bot messages into chat
-    botMessages.forEach(bm => {
-      if (bm.type === "flex") {
-        appendFlexMessage(bm.flex);
-      } else if (bm.text) {
-        appendBotBubble(bm.text);
-      }
+    lastPlan = data.plan || lastPlan;
+    (data.bot_messages || []).forEach((bm) => {
+      if (bm.type === "flex") appendFlexMessage(bm.flex);
+      else if (bm.text) appendBotBubble(bm.text);
     });
 
-    // Update Telemetry if Midpoint exists
-    if (state.midpoint_data) {
-      const mp = state.midpoint_data;
-      metricHubStation.textContent = mp.hub_station + "駅";
-      metricFairnessScore.textContent = mp.fairness_score + "点";
-      metricSpread.textContent = "±" + mp.spread_minutes + "分";
-      metricAvgTime.textContent = "約" + mp.avg_travel_time + "分";
-
-      // Render Ekispert Payload
-      ekispertPayloadView.textContent = JSON.stringify({
-        compliance: "NON_TIMETABLE_AVERAGE_ROUTE",
-        hub_station: mp.hub_station,
-        fairness_score: mp.fairness_score,
-        spread_minutes: mp.spread_minutes,
-        avg_travel_time: mp.avg_travel_time,
-        member_routes: mp.members,
-        alternative_hubs: mp.alternatives
+    const sd = state.schedule_data;
+    if (sd) {
+      const d = sd.details || {};
+      llmPayloadView.textContent = JSON.stringify({
+        reading: d.source === "llm" ? "LLM（GMI Cloud）" : "ルールベース（このページではLLMを使いません）",
+        members: sd.members, origins: sd.origins, day: d.day, time: d.time, meal: d.meal,
+        preferences: d.preferences, hotpepper_genre: d.genre, keyword: d.keyword,
       }, null, 2);
+      updatePipelineStep("agent_1", "completed", `${Object.keys(sd.origins || {}).length}人の出発駅`);
+    }
 
-      // Render Fairness Bars
+    const mp = state.midpoint_data;
+    if (mp) {
+      metricHubStation.textContent = mp.hub_station + "駅";
+      metricMaxTime.textContent = mp.max_travel_time + "分";
+      metricSpread.textContent = mp.spread_minutes + "分";
+      metricAvgTime.textContent = "約" + mp.avg_travel_time + "分";
+      ekispertPayloadView.textContent = JSON.stringify({
+        method: "ekispert_api_search_ranges（平均所要時間・時刻表不使用）",
+        hub_station: mp.hub_station, max_minutes: mp.max_travel_time, spread_minutes: mp.spread_minutes,
+        average_minutes: mp.avg_travel_time, members: mp.members, runners_up: mp.alternatives,
+      }, null, 2);
       renderFairnessBars(mp.members);
-
-      updatePipelineStep("agent_1", "completed", "抽出完了");
-      updatePipelineStep("agent_2", "completed", `中間駅: ${mp.hub_station}`);
+      updatePipelineStep("agent_2", "completed", `集合駅: ${mp.hub_station}`);
     }
-
-    if (state.venues && state.venues.length > 0) {
-      updatePipelineStep("agent_3", "completed", `穴場${state.venues.length}選`);
+    if (state.venues && state.venues.length) {
+      updatePipelineStep("agent_3", "completed", `候補${state.venues.length}軒`);
+      updatePipelineStep("agent_4", "active", "お店を選んでください");
     }
-
-    // Render LLM Payload
-    if (state.schedule_data) {
-      llmPayloadView.textContent = JSON.stringify(state.schedule_data, null, 2);
-    }
-
-    // Append logs
     if (state.agent_logs) {
       agentLogStream.innerHTML = "";
-      state.agent_logs.forEach(log => {
-        addLogEntry(`[${log.agent_name}] ${log.step}`);
-      });
+      state.agent_logs.forEach((log) => addLogEntry(`[${log.agent_name}] ${log.step}`));
     }
-
     scrollChatToBottom();
   }
 
-  // Fairness Bars Visualization
   function renderFairnessBars(members) {
     if (!members) return;
-    let html = "";
-    Object.entries(members).forEach(([name, info]) => {
-      const time = info.travel_time || 25;
-      const pct = Math.min(100, Math.round((time / 60) * 100));
-      html += `
+    const max = Math.max(10, ...Object.values(members).map((m) => m.travel_time || 0));
+    const scale = Math.ceil(max / 10) * 10;
+    fairnessBars.innerHTML = Object.entries(members).map(([name, info]) => {
+      const pct = Math.round(((info.travel_time || 0) / scale) * 100);
+      return `
         <div class="fairness-bar-item">
           <div class="bar-meta">
-            <span><strong>${name}</strong>（${info.origin}駅発 / 乗換${info.transfers}回）</span>
-            <span style="color: #4ADE80; font-weight: bold;">${time}分</span>
+            <span><strong>${escapeHtml(name)}</strong>（${escapeHtml(info.origin)}駅発・乗換${info.transfers}回）</span>
+            <span style="color:#4ADE80;font-weight:bold;">${info.travel_time}分</span>
           </div>
-          <div class="bar-track">
-            <div class="bar-fill" style="width: ${pct}%"></div>
-          </div>
-        </div>
-      `;
-    });
-    fairnessBars.innerHTML = html;
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+        </div>`;
+    }).join("") + `<p class="empty-hint">目盛り：0〜${scale}分（駅すぱあとの平均所要時間）</p>`;
   }
 
-  // Pipeline Step Updaters
   function updatePipelineStep(agentId, statusClass, statusText) {
     const sb = stepBoxes[agentId];
-    if (sb) {
-      sb.className = `step-box ${statusClass}`;
-      sb.querySelector(".step-status").textContent = statusText;
-    }
+    if (!sb) return;
+    sb.className = `step-box ${statusClass}`;
+    sb.querySelector(".step-status").textContent = statusText;
   }
 
   function addLogEntry(text) {
@@ -298,268 +244,174 @@ document.addEventListener("DOMContentLoaded", () => {
     agentLogStream.prepend(div);
   }
 
-  // LINE Chat Bubble Renderers
+  // ---- chat bubbles ------------------------------------------------------------------------------
+  const avatars = { "佐藤": "👨‍💼", "鈴木": "🧑‍💻", "田中": "👩‍🎨", "高橋": "🏃‍♂️", "美咲": "👩‍🦰", "結衣": "👱‍♀️",
+                    "陽菜": "👩‍🏫", "健太": "👨‍🔧", "大輔": "👨‍🔬", "翔平": "⚾" };
+
   function appendUserBubble(sender, text) {
-    const isMainUser = sender === "佐藤";
+    const isMain = sender === "佐藤";
     const row = document.createElement("div");
-    row.className = `chat-row ${isMainUser ? "user-row" : "other-row"}`;
-
-    const avatarMap = {
-      "佐藤": "👨‍💼",
-      "鈴木": "🧑‍💻",
-      "田中": "👩‍🎨",
-      "高橋": "🏃‍♂️",
-      "美咲": "👩‍🦰",
-      "結衣": "👱‍♀️",
-      "陽菜": "👩‍🏫",
-      "健太": "👨‍🔧",
-      "大輔": "👨‍🔬",
-      "翔平": "⚾"
-    };
-    const avatar = avatarMap[sender] || "👤";
-
-    const timeStr = getCurrentTime();
-
-    if (isMainUser) {
-      row.innerHTML = `
-        <div class="chat-timestamp">${timeStr}</div>
-        <div class="chat-bubble-container">
-          <div class="chat-bubble user">${escapeHtml(text)}</div>
-        </div>
-      `;
-    } else {
-      row.innerHTML = `
-        <div class="chat-avatar">${avatar}</div>
-        <div class="chat-bubble-container">
-          <div class="sender-name">${sender}</div>
-          <div class="chat-bubble other">${escapeHtml(text)}</div>
-        </div>
-        <div class="chat-timestamp">${timeStr}</div>
-      `;
-    }
-
+    row.className = `chat-row ${isMain ? "user-row" : "other-row"}`;
+    const time = getCurrentTime();
+    row.innerHTML = isMain
+      ? `<div class="chat-timestamp">${time}</div>
+         <div class="chat-bubble-container"><div class="chat-bubble user">${escapeHtml(text)}</div></div>`
+      : `<div class="chat-avatar">${avatars[sender] || "👤"}</div>
+         <div class="chat-bubble-container"><div class="sender-name">${escapeHtml(sender)}</div>
+         <div class="chat-bubble other">${escapeHtml(text)}</div></div>
+         <div class="chat-timestamp">${time}</div>`;
     chatBody.appendChild(row);
     scrollChatToBottom();
   }
 
-  function appendBotBubble(text) {
+  function appendBotBubble(text, pending = false) {
     const row = document.createElement("div");
     row.className = "chat-row other-row";
     row.innerHTML = `
-      <div class="chat-avatar" style="background:#06C755; color:#fff;">🤖</div>
+      <div class="chat-avatar" style="background:#06C755;color:#fff;">🤖</div>
       <div class="chat-bubble-container">
         <div class="sender-name" style="color:#06C755;">AsobiAgent</div>
-        <div class="chat-bubble other" style="border: 1px solid #06C755;">${escapeHtml(text)}</div>
+        <div class="chat-bubble other" style="border:1px ${pending ? "dashed" : "solid"} #06C755;">${escapeHtml(text)}</div>
       </div>
-      <div class="chat-timestamp">${getCurrentTime()}</div>
-    `;
+      <div class="chat-timestamp">${getCurrentTime()}</div>`;
+    chatBody.appendChild(row);
+    scrollChatToBottom();
+    return row;
+  }
+
+  function appendSystemText(text) {
+    const row = document.createElement("div");
+    row.className = "chat-date-separator";
+    row.innerHTML = `<span>${escapeHtml(text)}</span>`;
     chatBody.appendChild(row);
     scrollChatToBottom();
   }
 
-  // Flex Message Renderer
+  // ---- LINE Flex renderer (the subset the bot uses) ----------------------------------------------
   function appendFlexMessage(flexObj) {
     const row = document.createElement("div");
     row.className = "chat-row other-row";
-
     const content = flexObj.contents;
-    let cardHtml = "";
-
-    if (content.type === "bubble") {
-      cardHtml = renderFlexBubble(content);
-    } else if (content.type === "carousel") {
-      cardHtml = `<div class="flex-carousel-container">` + 
-        content.contents.map(b => `<div class="carousel-slide">${renderFlexBubble(b)}</div>`).join("") + 
-        `</div>`;
-    }
-
+    const cardHtml = content.type === "carousel"
+      ? `<div class="flex-carousel-container">${content.contents.map((b) => `<div class="carousel-slide">${renderBubble(b)}</div>`).join("")}</div>`
+      : renderBubble(content);
     row.innerHTML = `
-      <div class="chat-avatar" style="background:#06C755; color:#fff;">🤖</div>
-      <div class="chat-bubble-container" style="max-width: 90%;">
-        <div class="sender-name" style="color:#06C755;">AsobiAgent</div>
-        ${cardHtml}
-      </div>
-    `;
-
+      <div class="chat-avatar" style="background:#06C755;color:#fff;">🤖</div>
+      <div class="chat-bubble-container" style="max-width:90%;">
+        <div class="sender-name" style="color:#06C755;">AsobiAgent</div>${cardHtml}
+      </div>`;
     chatBody.appendChild(row);
-    attachCardActionHandlers(row);
+    row.querySelectorAll(".flex-action-btn").forEach((btn) => btn.addEventListener("click", () => onCardButton(btn)));
     scrollChatToBottom();
   }
 
-  function renderFlexBubble(b) {
-    let headerHtml = "";
-    if (b.header) {
-      const bg = b.header.backgroundColor || "#1E293B";
-      headerHtml = `<div class="flex-card-header" style="background: ${bg};">
-        ${renderBoxContents(b.header.contents)}
-      </div>`;
-    }
-
-    let bodyHtml = "";
-    if (b.body) {
-      bodyHtml = `<div class="flex-card-body">
-        ${renderBoxContents(b.body.contents)}
-      </div>`;
-    }
-
-    let footerHtml = "";
-    if (b.footer) {
-      footerHtml = `<div class="flex-card-footer">
-        ${renderBoxContents(b.footer.contents)}
-      </div>`;
-    }
-
-    return `
-      <div class="flex-bubble-card">
-        ${headerHtml}
-        ${bodyHtml}
-        ${footerHtml}
-      </div>
-    `;
+  function renderBubble(b) {
+    const hero = b.hero && b.hero.type === "image"
+      ? `<img src="${escapeAttr(b.hero.url)}" alt="" style="width:100%;aspect-ratio:20/13;object-fit:cover;display:block;">` : "";
+    const part = (box, cls) => box ? `<div class="${cls}">${renderContents(box.contents)}</div>` : "";
+    return `<div class="flex-bubble-card">${hero}${part(b.header, "flex-card-header")}${part(b.body, "flex-card-body")}${part(b.footer, "flex-card-footer")}</div>`;
   }
 
-  function renderBoxContents(contents) {
+  const sizes = { xxs: "10px", xs: "11px", sm: "12px", md: "14px", lg: "16px", xl: "19px", xxl: "24px" };
+
+  function renderContents(contents) {
     if (!contents) return "";
-    return contents.map(item => {
+    return contents.map((item) => {
       if (item.type === "text") {
-        const color = item.color ? `color: ${item.color};` : "";
-        const weight = item.weight === "bold" ? "font-weight: bold;" : "";
-        const align = item.align ? `text-align: ${item.align};` : "";
-        const sizeMap = { xs: "11px", sm: "12px", md: "14px", lg: "16px", xl: "18px", xxs: "9.5px" };
-        const size = item.size ? `font-size: ${sizeMap[item.size] || "12px"};` : "";
-        return `<p style="${color} ${weight} ${align} ${size} margin: 2px 0;">${escapeHtml(item.text)}</p>`;
-      } else if (item.type === "box") {
-        const isHoriz = item.layout === "horizontal";
-        const bg = item.backgroundColor ? `background: ${item.backgroundColor};` : "";
-        const pad = item.paddingAll ? `padding: ${item.paddingAll};` : "";
-        const radius = item.cornerRadius ? `border-radius: ${item.cornerRadius};` : "";
-        const margin = item.margin ? "margin-top: 6px;" : "";
-        const display = isHoriz ? "display: flex; justify-content: space-between; align-items: center;" : "display: flex; flex-direction: column;";
-        return `<div style="${display} ${bg} ${pad} ${radius} ${margin}">${renderBoxContents(item.contents)}</div>`;
-      } else if (item.type === "button") {
-        const actionData = item.action?.data || "";
-        const label = item.action?.label || "選択";
-        return `<button class="flex-action-btn" data-action="${actionData}">${label}</button>`;
+        const style = [
+          item.color ? `color:${item.color}` : "", item.weight === "bold" ? "font-weight:bold" : "",
+          item.align ? `text-align:${item.align}` : "", `font-size:${sizes[item.size] || "12px"}`,
+          item.flex !== undefined ? `flex:${item.flex}` : "", "margin:2px 0",
+        ].filter(Boolean).join(";");
+        return `<p style="${style}">${escapeHtml(item.text)}</p>`;
+      }
+      if (item.type === "box") {
+        const horizontal = item.layout === "horizontal";
+        const style = [
+          horizontal ? "display:flex;gap:6px;align-items:center" : "display:flex;flex-direction:column",
+          item.backgroundColor ? `background:${item.backgroundColor}` : "",
+          item.width ? `width:${item.width}` : "", item.height ? `height:${item.height}` : "",
+          item.cornerRadius ? `border-radius:${item.cornerRadius}` : "",
+          item.flex !== undefined ? `flex:${item.flex}` : "", item.margin ? "margin-top:6px" : "",
+          item.justifyContent === "center" ? "justify-content:center" : "",
+        ].filter(Boolean).join(";");
+        return `<div style="${style}">${renderContents(item.contents)}</div>`;
+      }
+      if (item.type === "button") {
+        const a = item.action || {};
+        if (a.type === "uri") {
+          return `<a class="flex-action-btn" href="${escapeAttr(a.uri)}" target="_blank" rel="noopener">${escapeHtml(a.label)}</a>`;
+        }
+        return `<button class="flex-action-btn" data-action="${escapeAttr(a.data || "")}">${escapeHtml(a.label || "選択")}</button>`;
       }
       return "";
     }).join("");
   }
 
-  function attachCardActionHandlers(container) {
-    const btns = container.querySelectorAll(".flex-action-btn");
-    btns.forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const dataStr = btn.getAttribute("data-action");
-        if (!dataStr) return;
-
-        // Parse query string data
-        const params = new URLSearchParams(dataStr);
-        const action = params.get("action");
-
-        if (action === "reserve") {
-          const venueId = params.get("venue_id");
-          const venueName = params.get("venue_name");
-          startVoiceCallSimulation(venueId, venueName);
-        }
-      });
-    });
+  function onCardButton(btn) {
+    if (btn.tagName === "A") return; // links open on their own
+    const params = new URLSearchParams(btn.getAttribute("data-action") || "");
+    if (params.get("a") === "vote") {
+      showReservationPrep(params.get("v"));
+    } else {
+      appendSystemText("この操作はLINE版で使えます（このページでは投票ボタンだけ動きます）。");
+    }
   }
 
-  // Voice Call Modal Simulation (Agent 4)
-  async function startVoiceCallSimulation(venueId, venueName) {
-    voiceCallModal.classList.add("active");
-    callVenueTitle.textContent = venueName || "恵比寿 薪火バル CANTE";
-    callVenuePhone.textContent = "📞 03-5792-XXXX に架電中...";
-    callDialogueBox.innerHTML = "";
-    
-    updatePipelineStep("agent_4", "active", "店舗へ自律架電中");
-
-    // Start timer
-    let sec = 0;
-    callTimer.textContent = "00:00";
-    clearInterval(callTimerInterval);
-    callTimerInterval = setInterval(() => {
-      sec++;
-      const m = String(Math.floor(sec / 60)).padStart(2, '0');
-      const s = String(sec % 60).padStart(2, '0');
-      callTimer.textContent = `${m}:${s}`;
-    }, 1000);
-
+  // ---- 予約の準備 (replaces the old simulated AI phone call) ----------------------------------------
+  async function showReservationPrep(venueId) {
+    updatePipelineStep("agent_4", "active", "予約の準備中…");
     try {
-      // Call backend to execute reservation
       const res = await fetch("/api/reserve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ venue_id: venueId, organizer: "佐藤" })
+        body: JSON.stringify({ venue_id: venueId, plan: lastPlan || {} }),
       });
       const data = await res.json();
-      const reservation = data.reservation;
-      const dialogue = reservation.dialogue || [];
-
-      // Sequentially stream dialogue
-      for (let i = 0; i < dialogue.length; i++) {
-        const turn = dialogue[i];
-        await appendCallTurnWithDelay(turn, 1200);
+      if (!res.ok) {
+        appendSystemText(data.detail || "準備できませんでした。");
+        return;
       }
-
-      // Finish call
-      clearInterval(callTimerInterval);
-      callVenuePhone.textContent = "✅ 通話完了・予約確定！";
-      updatePipelineStep("agent_4", "completed", "予約完了 (発信終了)");
-
-      // Auto-append ticket to chat
-      if (data.bot_message) {
-        appendFlexMessage(data.bot_message.flex);
+      (data.bot_messages || []).forEach((bm) => appendFlexMessage(bm.flex));
+      modalTitle.textContent = data.shop.name;
+      modalSub.textContent = "まだ予約は完了していません。下のどれかで予約してください。";
+      const lines = data.script.lines.map((l) => `<div class="call-turn turn-ai"><span>${escapeHtml(l)}</span></div>`).join("");
+      const links = [
+        data.shop.url ? `<a class="btn btn-primary" href="${escapeAttr(data.shop.url)}" target="_blank" rel="noopener">ホットペッパーで予約</a>` : "",
+        data.agent_url ? `<a class="btn btn-secondary" href="${escapeAttr(data.agent_url)}" target="_blank" rel="noopener">AIに入力を任せる（デモ）</a>` : "",
+      ].join("");
+      modalBody.innerHTML = `
+        <p class="turn-speaker">電話で予約する場合の台本（幹事が読み上げます）</p>${lines}
+        <div class="call-turn turn-staff"><span>満席なら：${escapeHtml(data.script.if_full)}</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">${links}</div>`;
+      modal.classList.add("active");
+      updatePipelineStep("agent_4", "completed", "台本とリンクを用意");
+      if (readAloud.checked && "speechSynthesis" in window) {
+        data.script.lines.forEach((l) => {
+          const u = new SpeechSynthesisUtterance(l.replace(/[「」]/g, ""));
+          u.lang = "ja-JP";
+          window.speechSynthesis.speak(u);
+        });
       }
     } catch (e) {
-      console.error(e);
+      appendSystemText("通信エラーが発生しました。");
     }
   }
 
-  async function appendCallTurnWithDelay(turn, delayMs) {
-    await new Promise(r => setTimeout(r, delayMs));
-    const turnDiv = document.createElement("div");
-    const isAi = turn.role === "ai";
-    turnDiv.className = `call-turn ${isAi ? "turn-ai" : "turn-staff"}`;
-    turnDiv.innerHTML = `
-      <span class="turn-speaker">${turn.speaker} [${turn.audio_label || ""}]</span>
-      <span>${escapeHtml(turn.text)}</span>
-    `;
-    callDialogueBox.appendChild(turnDiv);
-    callDialogueBox.scrollTop = callDialogueBox.scrollHeight;
-
-    // Browser Speech Synthesis (Web Speech TTS)
-    if (enableTtsAudio.checked && 'speechSynthesis' in window) {
-      try {
-        const utterance = new SpeechSynthesisUtterance(turn.text);
-        utterance.lang = "ja-JP";
-        utterance.rate = isAi ? 1.05 : 1.0;
-        utterance.pitch = isAi ? 1.0 : 0.95;
-        window.speechSynthesis.speak(utterance);
-      } catch (e) {
-        // Audio might require user interaction in some browsers
-      }
-    }
-  }
-
-  closeCallModalBtn.addEventListener("click", () => {
-    voiceCallModal.classList.remove("active");
-    clearInterval(callTimerInterval);
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  closeModalBtn.addEventListener("click", () => {
+    modal.classList.remove("active");
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   });
 
-  // Helpers
-  function scrollChatToBottom() {
-    chatBody.scrollTop = chatBody.scrollHeight;
-  }
-
+  function scrollChatToBottom() { chatBody.scrollTop = chatBody.scrollHeight; }
   function getCurrentTime() {
     const now = new Date();
-    return `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+    return `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
   }
-
   function escapeHtml(str) {
-    if (!str) return "";
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return String(str ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function escapeAttr(str) {
+    return escapeHtml(str).replace(/"/g, "&quot;");
   }
 });

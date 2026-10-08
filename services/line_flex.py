@@ -174,7 +174,7 @@ def hub_card(hub: dict, people: list[tuple[str, str, int]], summary: str) -> dic
 
 # ---- phase 5: venues and vote -------------------------------------------------------------------
 
-def _venue_bubble(nonce: str, label: str, shop: dict, pick: dict) -> dict:
+def _venue_bubble(nonce: str, label: str, shop: dict, pick: dict, featured: Optional[dict] = None) -> dict:
     crowd = pick.get("crowd") or {"level": "中"}
     level = crowd.get("level", "中")
     walk = f"徒歩約{pick['walk_min']}分" if pick.get("walk_min") else (shop.get("station_name") or "")
@@ -184,20 +184,26 @@ def _venue_bubble(nonce: str, label: str, shop: dict, pick: dict) -> dict:
         text(f"予算 {shop.get('budget_average') or shop.get('budget') or '—'}", size="xs", color=INK),
         text(f"混雑度（推定）{level}", size="xs", weight="bold", color=CROWD_COLORS.get(level, INK)),
         text(pick.get("reason") or "", size="xs", color=INK, margin="sm"),
-        text(CREDIT_TEXT, size="xxs", color=MUTED, margin="md"),
     ]
+    if featured:
+        body.append(text("Time Out で紹介されています", size="xxs", weight="bold", color=ACCENT, margin="sm"))
+    body.append(text(CREDIT_TEXT, size="xxs", color=MUTED, margin="md"))
     hero = None
     if shop.get("photo"):
         hero = {"type": "image", "url": shop["photo"], "size": "full", "aspectRatio": "20:13", "aspectMode": "cover"}
     footer = [postback(f"{label}に投票", {"a": "vote", "p": nonce, "v": shop["id"]}, f"🗳 {label}に投票")]
     if shop.get("url"):
         footer.append(link("お店の詳細", shop["url"]))
+    if featured:
+        footer.append(link("Time Outの記事", featured["url"], style="link"))
     return bubble(body, footer, hero=hero)
 
 
 def venues_carousel(nonce: str, shops: list[dict], picks: list[dict], labels: list[str],
-                    more_left: int, searches_left: int) -> dict:
-    bubbles = [_venue_bubble(nonce, label, shop, pick) for label, shop, pick in zip(labels, shops, picks)]
+                    more_left: int, searches_left: int, featured: Optional[list[Optional[dict]]] = None) -> dict:
+    featured = featured or [None] * len(shops)
+    bubbles = [_venue_bubble(nonce, label, shop, pick, f)
+               for label, shop, pick, f in zip(labels, shops, picks, featured)]
     options: list[dict] = []
     if more_left > 0:
         options.append(postback(f"ほかの3軒（あと{more_left}回）", {"a": "more", "p": nonce}, "ほかの候補を見る",

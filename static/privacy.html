@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AsobiAgent プライバシーポリシー</title>
+<style>
+:root{--bg:#F6F7F9;--card:#FFFFFF;--ink:#1A2130;--muted:#5C6677;--line:#D9DFE7;--accent:#2D58A6}
+@media (prefers-color-scheme: dark){:root{--bg:#11151B;--card:#1A2029;--ink:#E5E9F0;--muted:#9AA4B4;--line:#2B3340;--accent:#86A8E8}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;line-height:1.8}
+main{max-width:720px;margin:0 auto;padding:32px 18px 64px}
+h1{font-size:24px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}
+p,li{font-size:15px}.muted{color:var(--muted);font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:14px;background:var(--card)}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--bg);font-weight:600}
+.scroll{overflow-x:auto}
+</style>
+</head>
+<body>
+<main>
+  <h1>AsobiAgent プライバシーポリシー</h1>
+  <p class="muted">最終更新：2026年10月9日</p>
+
+  <p>AsobiAgent（以下「本サービス」）は、LINEのグループトークで集合駅とお店を決めるお手伝いをするボットです。本サービスは、必要な情報を必要な間だけ扱い、目的を果たしたら削除することを基本方針としています。</p>
+
+  <h2>1. 取り扱う情報と保存期間</h2>
+  <div class="scroll"><table>
+    <tr><th>情報</th><th>使い道</th><th>保存のしかた・期間</th></tr>
+    <tr><td>LINEのユーザーID・グループID</td><td>招待コードの確認、グループごとの利用回数の管理</td><td>元のIDは保存せず、復元できない形（ハッシュ値）でのみ保存します。グループの利用回数は最後の利用から90日で削除します。認証済みかどうか（ハッシュ値のみ）は、招待コードを何度も入力しなくて済むよう保存します。</td></tr>
+    <tr><td>LINEの表示名</td><td>参加者一覧・投票・電話用の台本に表示するため</td><td>プランが決まった時点で削除します（決まらなかった場合も最長7日）。</td></tr>
+    <tr><td>プラン募集中に参加者が送ったメッセージ</td><td>出発駅・日時・お店の希望を読み取るため</td><td>参加ボタンを押した人のメッセージだけを、最大50件まで一時保存します。お店を検索した時点で削除します。参加していない人のメッセージや、募集中以外のメッセージは読み取らず、保存もしません。</td></tr>
+    <tr><td>出発駅・投票内容</td><td>集合駅の計算と、お店の決定のため</td><td>出発駅は集合駅を計算した時点で、投票はお店が決まった時点で削除します。</td></tr>
+    <tr><td>AI予約エージェント（デモ）の入力内容</td><td>デモ用フォームへの入力のため（幹事の表示名・日時・人数）</td><td>24時間で削除します。デモ用フォームへの入力内容は保存しません。</td></tr>
+  </table></div>
+
+  <h2>2. 外部サービスへの送信</h2>
+  <ul>
+    <li><strong>LINE（LINEヤフー株式会社）</strong>：メッセージの受信と返信。</li>
+    <li><strong>駅すぱあと（株式会社ヴァル研究所）</strong>：駅名と、集合駅を探すための出発駅の組み合わせ。</li>
+    <li><strong>ホットペッパーグルメ Webサービス（株式会社リクルート）</strong>：集合駅の位置と、お店の条件（ジャンル・予算など）。</li>
+    <li><strong>Google Places API（Google LLC）</strong>：決まったお店の店名と住所（電話番号を調べるため）。</li>
+    <li><strong>GMI Cloud（AIモデル）</strong>：募集中に参加者が送ったメッセージ本文（日時・希望の読み取りのため）。名前やLINEのIDは送りません。</li>
+  </ul>
+  <p>本サービスは、これらの情報を広告や販売に使うことはありません。</p>
+
+  <h2>3. 予約について</h2>
+  <p>本サービスはお店に電話をかけたり、代わりに予約を確定したりしません。予約はホットペッパーのページか、ご自身のお電話でお願いします。「AI予約エージェント（デモ）」は、本サービスが用意したデモ用のフォームにだけ入力し、実在のお店には何も送信しません。</p>
+
+  <h2>4. お問い合わせ・削除のご依頼</h2>
+  <p>LINE公式アカウント「AsobiAgent」のトークからご連絡ください。グループからAsobiAgentを退出させると、そのグループで進行中のプランの情報はすぐに削除されます。</p>
+</main>
+</body>
+</html>

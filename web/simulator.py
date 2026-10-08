@@ -120,7 +120,8 @@ async def run_pipeline(deps: Deps, messages: list[dict[str, str]], use_llm: bool
     logs.append({"agent_name": "Agent 2", "step": f"駅すぱあと範囲探索で集合駅を算出：{hub['name']}"})
     station = await deps.stations.by_code(hub["code"])
     pax = len(senders)
-    picks = await spot_agent.shortlist(deps.llm, deps.hotpepper, station, details, pax, use_llm=use_llm)
+    picks = await spot_agent.shortlist(deps.llm, deps.hotpepper, station, details, pax, use_llm=use_llm,
+                                       featured=deps.featured)
     shops = await deps.hotpepper.shops_by_ids([p["id"] for p in picks[:3]])
     picks = [p for p in picks[:3] if p["id"] in shops]
     logs.append({"agent_name": "Agent 3", "step": f"ホットペッパーで{hub['name']}駅周辺のお店を{len(picks)}軒選定"})
@@ -128,8 +129,9 @@ async def run_pipeline(deps: Deps, messages: list[dict[str, str]], use_llm: bool
     people = [(name, origins[name]["name"], hub["minutes"].get(origins[name]["name"], 0)) for name in senders if name in origins]
     result["bot_messages"] = [
         {"type": "flex", "flex": line_flex.hub_card(hub, people, schedule_agent.details_text(details))},
-        {"type": "flex", "flex": line_flex.venues_carousel("sim", [shops[p["id"]] for p in picks], picks,
-                                                           list("ABC")[:len(picks)], 0, 0)},
+        {"type": "flex", "flex": line_flex.venues_carousel(
+            "sim", [shops[p["id"]] for p in picks], picks, list("ABC")[:len(picks)], 0, 0,
+            [deps.featured(shops[p["id"]]) for p in picks])},
     ]
     result["session_state"]["midpoint_data"] = {
         "hub_station": hub["name"], "max_travel_time": hub["max"], "spread_minutes": hub["spread"],

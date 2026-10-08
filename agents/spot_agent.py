@@ -9,7 +9,7 @@ walking distance, labelled 推定 everywhere it appears, because no live crowd d
 import json
 import logging
 import math
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from services.hotpepper_client import BUDGETS, HotPepperClient
 from services.llm_client import LLMClient
@@ -92,7 +92,8 @@ async def search_shops(hotpepper: HotPepperClient, station: dict[str, Any], deta
 def _rule_based_order(shops: list[dict[str, Any]], details: dict[str, Any]) -> list[dict[str, Any]]:
     rank = {"低": 0, "中": 1, "高": 2}
     quiet = details.get("quiet", True)
-    return sorted(shops, key=lambda s: ((rank[s["crowd"]["level"]] if quiet else 0), s.get("walk_min") or 99))
+    return sorted(shops, key=lambda s: ((rank[s["crowd"]["level"]] if quiet else 0),
+                                        0 if s.get("featured") else 1, s.get("walk_min") or 99))
 
 
 def _fallback_reason(shop: dict[str, Any]) -> str:
@@ -102,12 +103,14 @@ def _fallback_reason(shop: dict[str, Any]) -> str:
 
 async def shortlist(llm: LLMClient, hotpepper: HotPepperClient, station: dict[str, Any],
                     details: dict[str, Any], pax: int, exclude: Optional[set[str]] = None,
-                    use_llm: bool = True) -> list[dict[str, Any]]:
+                    use_llm: bool = True,
+                    featured: Optional[Callable[[dict[str, Any]], Optional[dict]]] = None) -> list[dict[str, Any]]:
     """Up to nine venues, best first: [{id, reason, crowd, walk_min}]."""
     shops = await search_shops(hotpepper, station, details, pax, exclude or set())
     for shop in shops:
         shop["walk_min"] = walk_minutes(shop, station)
         shop["crowd"] = crowd_estimate(shop, shop["walk_min"])
+        shop["featured"] = bool(featured and featured(shop))
     ordered = _rule_based_order(shops, details)[:15]
 
     picks: list[dict[str, Any]] = []
@@ -117,6 +120,7 @@ async def shortlist(llm: LLMClient, hotpepper: HotPepperClient, station: dict[st
             "budget": s.get("budget"), "open": (s.get("open") or "")[:160], "close": s.get("close"),
             "lunch": s.get("lunch"), "private_room": (s.get("private_room") or "")[:20],
             "seats": s.get("capacity"), "walk_min": s.get("walk_min"), "crowd_estimate": s["crowd"]["level"],
+            "featured_by_time_out": s["featured"],
         } for s in ordered]
         prompt = f"""A group of {pax} wants: {json.dumps({k: details.get(k) for k in ('day', 'time', 'meal', 'preferences', 'quiet')}, ensure_ascii=False)}
 Candidates near {station['name']} station (from HotPepper):

@@ -542,7 +542,8 @@ class GroupBot:
             if not station or station.get("lat") is None:
                 raise SearchProblem(texts.NO_HUB)
             pax = len(snap["participants"])
-            picks = await spot_agent.shortlist(self.d.llm, self.d.hotpepper, station, details, pax)
+            picks = await spot_agent.shortlist(self.d.llm, self.d.hotpepper, station, details, pax,
+                                               featured=self.d.featured)
             if not picks:
                 raise SearchProblem(texts.NO_VENUES)
         except SearchProblem as e:
@@ -585,8 +586,9 @@ class GroupBot:
         chunk = [p for p in chunk if p["id"] in shops]
         labels = [LABELS[page * PAGE + i] for i in range(len(chunk))]
         pages = math.ceil(len(plan["picks"]) / PAGE)
-        return line_flex.venues_carousel(plan["nonce"], [shops[p["id"]] for p in chunk], chunk, labels,
-                                         pages - page - 1, searches_left)
+        shown = [shops[p["id"]] for p in chunk]
+        return line_flex.venues_carousel(plan["nonce"], shown, chunk, labels, pages - page - 1, searches_left,
+                                         [self.d.featured(s) for s in shown])
 
     async def more(self, c: Ctx, nonce: Optional[str]) -> None:
         def fn(docs):
@@ -631,7 +633,8 @@ class GroupBot:
                 details = await schedule_agent.refine_details(self.d.llm, details, request)
             station = await self.d.stations.by_code(snap["hub"]["code"])
             picks = await spot_agent.shortlist(self.d.llm, self.d.hotpepper, station, details,
-                                               len(snap["participants"]), exclude=set(shown))
+                                               len(snap["participants"]), exclude=set(shown),
+                                               featured=self.d.featured)
             if not picks:
                 raise SearchProblem(texts.NO_VENUES)
         except SearchProblem as e:

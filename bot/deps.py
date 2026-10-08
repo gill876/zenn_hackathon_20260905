@@ -12,6 +12,7 @@ from services.ids import Ids
 from services.llm_client import LLMClient
 from services.places_client import PlacesClient
 from services.stations import StationResolver
+from services.timeout_index import TimeOutIndex
 from services.store import Store
 from services.usage import Usage
 
@@ -31,6 +32,7 @@ class Deps:
     hotpepper: HotPepperClient
     places: PlacesClient
     form_agent: Optional[Any] = None
+    timeout: Optional[TimeOutIndex] = None
     clock: Callable[[], float] = field(default=time.time)
 
     async def reply(self, ev: dict[str, Any], messages: list[dict[str, Any]]) -> None:
@@ -39,6 +41,10 @@ class Deps:
             ok = await self.line.reply(token, messages)
             if not ok:
                 log.warning("reply failed for event type %s", ev.get("type"))
+
+    def featured(self, shop: dict[str, Any]) -> Optional[dict[str, Any]]:
+        """Time Out's page about this shop, if they've written about it."""
+        return self.timeout.match(shop) if self.timeout else None
 
     def base_url(self) -> str:
         return self.settings.public_base_url or "http://localhost:8000"
@@ -66,5 +72,6 @@ def build_deps(settings: Settings, store: Store, line: Any, clock: Callable[[], 
         hotpepper=HotPepperClient(settings.hotpepper_api_key, store=store, usage=usage, clock=clock),
         places=PlacesClient(settings.places_api_key, usage=usage),
         form_agent=form_agent,
+        timeout=TimeOutIndex.load(),
         clock=clock,
     )

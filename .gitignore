@@ -10,3 +10,7 @@ venv/
 *.log
 .vscode/
 .idea/
+
+# Time Out facts index (built by jobs/timeout_crawl.py; not redistributed)
+data/*
+!data/.gitkeep

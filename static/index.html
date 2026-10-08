@@ -90,7 +90,7 @@
             </div>
             <div class="input-row">
               <span class="input-icon">➕</span>
-              <input type="text" id="chatInput" placeholder="メッセージを入力（例: 肉食べたい！）" />
+              <input type="text" id="chatInput" placeholder="自由入力は管理者のみ（LINE版でお試しください）" />
               <button id="sendBtn" class="btn-line-send">送信</button>
             </div>
           </div>
@@ -124,7 +124,7 @@
           <div class="step-arrow">➔</div>
           <div class="step-box" id="stepAgent4">
             <div class="step-num">Agent 4</div>
-            <div class="step-name">自律AI電話予約</div>
+            <div class="step-name">予約の準備（台本・フォーム）</div>
             <div class="step-status">未実行</div>
           </div>
         </div>
@@ -134,8 +134,8 @@
       <div class="card telemetry-card">
         <div class="tab-headers">
           <button class="tab-btn active" data-tab="tabEkispert">🚇 駅すぱあと (Ekispert) 解析</button>
-          <button class="tab-btn" data-tab="tabFairness">⚖ 公平性スコア & 移動比較</button>
-          <button class="tab-btn" data-tab="tabLLM">🧠 GMI Cloud 推論ログ</button>
+          <button class="tab-btn" data-tab="tabFairness">⚖ メンバーごとの移動時間</button>
+          <button class="tab-btn" data-tab="tabLLM">🧠 日時・希望の読み取り</button>
           <button class="tab-btn" data-tab="tabPipeline">📋 全エージェント実行ログ</button>
         </div>
 
@@ -146,7 +146,7 @@
               <span class="badge-icon">🛡️</span>
               <div>
                 <strong>ハッカソン規約遵守 (ダイヤ情報不使用)</strong>
-                <p>時刻指定のダイヤ探索は行わず、<code>multipleRange</code> および <code>searchType: plain</code>（平均乗車時間探索）により全員の移動バランスを公平に算出しています。</p>
+                <p>時刻指定のダイヤ探索は行わず、<code>ekispert_api_search_ranges</code>（範囲探索・平均待ち時間込み）の1回の呼び出しで、全員が行ける駅と各自の平均所要時間を取得しています。最大移動時間が最も短く、差が最も小さい駅を選びます。</p>
               </div>
             </div>
 
@@ -156,7 +156,7 @@
                 <span class="metric-value text-green" id="metricHubStation">-</span>
               </div>
               <div class="metric-box">
-                <span class="metric-label">公平性スコア</span>
+                <span class="metric-label">最大移動時間</span>
                 <span class="metric-value text-gold" id="metricFairnessScore">-</span>
               </div>
               <div class="metric-box">
@@ -179,7 +179,7 @@
           <div class="tab-pane" id="tabFairness">
             <div class="fairness-section">
               <h3>メンバー間 移動時間バランス分析</h3>
-              <p class="section-desc">特定の参加者に過度な移動負担（30分以上の差）が生じないよう、全員の移動時間を均等化しています。</p>
+              <p class="section-desc">一番遠い人の移動時間をできるだけ短くし、そのうえで全員の差が小さい駅を選んでいます。</p>
               <div class="fairness-bars" id="fairnessBars">
                 <p class="empty-hint">中間駅が算出されるとグラフが表示されます</p>
               </div>
@@ -189,12 +189,12 @@
           <!-- Tab 3: GMI LLM Inference -->
           <div class="tab-pane" id="tabLLM">
             <div class="llm-info-bar">
-              <span><strong>Model:</strong> Qwen/Qwen3.8-Flash (1M Context)</span>
-              <span><strong>Provider:</strong> GMI Cloud GPU</span>
+              <span><strong>このページ:</strong> ルールベース（LLMを使いません）</span>
+              <span><strong>LINE版:</strong> GMI Cloud の LLM（使えないときはルールに切り替え）</span>
             </div>
             <div class="code-preview-box">
-              <div class="code-header">LLM 構造化抽出 (Agent 1 & Agent 3):</div>
-              <pre id="llmPayloadView">// GMI LLMの推論結果がここに表示されます</pre>
+              <div class="code-header">日時・希望の読み取り結果 (Agent 1):</div>
+              <pre id="llmPayloadView">// 読み取った日時・希望がここに表示されます</pre>
             </div>
           </div>
 
@@ -209,41 +209,20 @@
     </section>
   </main>
 
-  <!-- Voice Call Modal (Agent 4 Autonomous Phone Simulation) -->
+  <!-- 予約の準備 (Agent 4): call script and links. The bot never places calls itself. -->
   <div class="modal-overlay" id="voiceCallModal">
     <div class="modal-card phone-call-card">
       <div class="call-header">
-        <div class="calling-indicator">
-          <span class="live-tag">LIVE AI CALL</span>
-          <span class="call-timer" id="callTimer">00:12</span>
-        </div>
-        <h2 class="venue-call-title" id="callVenueTitle">恵比寿 薪火バル CANTE</h2>
-        <p class="venue-call-phone" id="callVenuePhone">📞 03-5792-4810 に架電中...</p>
+        <div class="calling-indicator"><span class="live-tag">予約の準備</span></div>
+        <h2 class="venue-call-title" id="callVenueTitle">-</h2>
+        <p class="venue-call-phone" id="callVenuePhone"></p>
       </div>
-
-      <!-- Sound Wave Visualizer -->
-      <div class="sound-wave-container">
-        <div class="sound-wave-bar"></div>
-        <div class="sound-wave-bar"></div>
-        <div class="sound-wave-bar"></div>
-        <div class="sound-wave-bar"></div>
-        <div class="sound-wave-bar"></div>
-        <div class="sound-wave-bar"></div>
-        <div class="sound-wave-bar"></div>
-        <div class="sound-wave-bar"></div>
-      </div>
-
-      <!-- Live Dialogue Turns -->
-      <div class="call-dialogue-box" id="callDialogueBox">
-        <!-- Turns injected dynamically -->
-      </div>
-
-      <!-- Call Status / Controls -->
+      <div class="call-dialogue-box" id="callDialogueBox"></div>
       <div class="call-footer">
         <div class="call-audio-toggle">
-          <label><input type="checkbox" id="enableTtsAudio" checked> 🔊 日本語音声読み上げ (Web Speech TTS)</label>
+          <label><input type="checkbox" id="enableTtsAudio"> 🔊 台本を読み上げる (Web Speech)</label>
         </div>
-        <button class="btn btn-danger" id="closeCallModalBtn">通話を終了・チケット受領</button>
+        <button class="btn btn-secondary" id="closeCallModalBtn">閉じる</button>
       </div>
     </div>
   </div>
