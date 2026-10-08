@@ -11,3 +11,5 @@ tests/
 docs/
 .DS_Store
 *.log
+data/timeout_sitemaps.json
+data/timeout_venues.done

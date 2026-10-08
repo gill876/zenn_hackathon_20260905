@@ -15,3 +15,5 @@ docs/
 *.log
 presentation_en.html
 presentation_ja.html
+data/timeout_sitemaps.json
+data/timeout_venues.done
