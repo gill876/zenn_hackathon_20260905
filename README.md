@@ -14,7 +14,7 @@ small invite-only beta.
 | 1 待機 | Activated. Ordinary chat is dropped unread. | — |
 | 2 募集 | `@AsobiAgent 土曜13時からランチ` (or プランを立てる). People tap 参加する and just chat: 「横浜から行くよ」. Stations are recognised by rules and checked against 駅すぱあと's station list. | station checks, cached |
 | 3 確認 | When everyone has a station, a card lists them. The search starts when **everyone taps ✅**, or the organizer taps もう探して. | — |
-| 4 検索 | One 駅すぱあと range search finds the station with the shortest worst-case trip (average times, no timetable). HotPepper finds real venues within 1 km. | Ekispert ×1, HotPepper ×1, LLM ×2 (optional) |
+| 4 検索 | One 駅すぱあと range search finds the station with the shortest worst-case trip (average times, no timetable). HotPepper finds real venues within 1 km, minus any that are closed at the planned time; each page of three also gets one place Time Out has written about, when one fits. | Ekispert ×1, HotPepper ×1, LLM ×2 (optional) |
 | 5 投票 | Three venues with votes, ほかの3軒, and refinements: もっと安く / 個室がいい / 駅の近く / 「@AsobiAgent 和食がいい」. | per refinement: HotPepper ×1, LLM ×1 |
 | 6 決定 | Majority wins. The bot posts the venue, a HotPepper booking link, a **call script with a one-tap dial button**, and a demo **form agent** link, then leaves the group. | Places ×1 |
 
@@ -37,7 +37,7 @@ is deleted at the decision (details at `/privacy`).
 | `bot/onboarding.py` | 1:1 chat: invite codes, admin commands |
 | `bot/text_parse.py` | Rule-based reading of stations, dates and triggers |
 | `agents/` | Agent 1 details (LLM, rule fallback) · Agent 2 hub (Ekispert) · Agent 3 venues (HotPepper) · Agent 4 call script and form agent |
-| `services/` | Clients (LINE, Ekispert MCP, HotPepper, Places, GMI), Firestore/memory store, daily usage caps, Time Out index |
+| `services/` | Clients (LINE, Ekispert MCP, HotPepper, Places, GMI), Firestore/memory store, daily usage caps, Time Out index, opening-hours parser |
 | `jobs/form_agent/` | Cloud Run Job: Playwright browser for the form agent |
 | `jobs/timeout_crawl.py` | Builds the "Time Out で紹介" index (facts and links only) |
 | `static/` | Web simulator (replays preset chats without the LLM), pitch decks, privacy policy |
@@ -62,8 +62,10 @@ form agent locally: `pip install playwright && playwright install chromium`, the
 - **ホットペッパーグルメ Webサービス:** the credit 「Powered by ホットペッパーグルメ Webサービス」 is shown on every
   card that uses its data, cached data expires within 24 hours, and the service is free (no revenue from the data).
 - **Time Out:** their terms forbid copying, reposting or translating content. The crawler (robots.txt-compliant,
-  one request every 2 s) keeps only a place's name, coordinates and Time Out's URL, so the bot can say
-  「Time Out で紹介されています」 and link to Time Out. The index is git-ignored.
+  one request every 2 s) keeps only facts about each place (name, coordinates, address, phone, opening hours) and
+  Time Out's URL. The bot uses them to badge matching HotPepper venues, to suggest Time Out places as candidates,
+  and to fill in a phone number, always linking to Time Out and never showing their writing or photos. The index
+  is git-ignored. Details: [docs/TIMEOUT.md](docs/TIMEOUT.md).
 - **Google Places:** phone numbers aren't cached, and lookups are capped per day.
 
 ## Deploying
