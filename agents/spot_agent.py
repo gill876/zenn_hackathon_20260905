@@ -6,20 +6,58 @@ and write one line on why each fits. Crowding is a rule-based estimate from seat
 walking distance, labelled 推定 everywhere it appears, because no live crowd data is used.
 """
 
+import datetime as dt
 import json
 import logging
 import math
 from typing import Any, Callable, Optional
 
+from bot.text_parse import resolve_day
 from services.hotpepper_client import BUDGETS, HotPepperClient
+from services.hours import open_at, split_time_ok
 from services.llm_client import LLMClient
 from services.places_client import distance_m
+from services.timeout_index import TimeOutIndex, as_shop
+from services.usage import JST
 
 log = logging.getLogger("spot_agent")
 
 SHORTLIST_SIZE = 9   # three pages of three
 BUDGET_ORDER = list(BUDGETS)  # cheapest first, as Recruit lists them
 SYSTEM = "You recommend restaurants for a group outing in Japan. Reply in Japanese inside a JSON object."
+MEAL_MINUTES = {"lunch": 12 * 60 + 30, "dinner": 19 * 60, "cafe": 15 * 60, "drinks": 19 * 60 + 30}
+# Words in a Time Out place's name that show it fits a HotPepper genre (Time Out gives no cuisine field).
+GENRE_HINTS = {
+    "G001": ["居酒屋", "酒場"], "G002": ["バル", "bar", "ビストロ"], "G004": ["和食", "寿司", "鮨", "割烹", "そば", "蕎麦", "天ぷら", "うどん", "とんかつ"],
+    "G006": ["イタリア", "trattoria", "ristorante", "bistro", "ビストロ", "フレンチ", "pizza", "ピッツァ"],
+    "G007": ["中華", "飯店", "餃子", "酒家"], "G008": ["焼肉", "ホルモン", "ジンギスカン"], "G009": ["タイ", "ベトナム", "インド", "カレー", "curry"],
+    "G013": ["ラーメン", "らーめん", "麺", "そば"], "G014": ["カフェ", "cafe", "coffee", "珈琲", "喫茶", "コーヒー"],
+    "G016": ["お好み", "もんじゃ"], "G017": ["韓国"],
+}
+
+
+def planned_moment(details: dict[str, Any], today: Optional[dt.date] = None) -> tuple[Optional[int], Optional[int]]:
+    """(weekday, minute of day) the group is planning for, when the chat says enough to tell."""
+    today = today or dt.datetime.now(JST).date()
+    day = resolve_day(details.get("day"), today)
+    minute = None
+    if details.get("time"):
+        try:
+            hour, mins = details["time"].split(":")
+            minute = int(hour) * 60 + int(mins)
+        except ValueError:
+            minute = None
+    if minute is None:
+        minute = MEAL_MINUTES.get(details.get("meal") or "")
+    return (day.weekday() if day else None), minute
+
+
+def is_open(shop: dict[str, Any], weekday: Optional[int], minute: Optional[int]) -> Optional[bool]:
+    if shop.get("source") == "timeout":
+        open_text, close_text = split_time_ok(shop.get("open"))
+    else:
+        open_text, close_text = shop.get("open"), shop.get("close")
+    return open_at(open_text, close_text, weekday, minute)
 
 
 def walk_minutes(shop: dict[str, Any], station: dict[str, Any]) -> Optional[int]:
@@ -83,7 +121,9 @@ async def search_shops(hotpepper: HotPepperClient, station: dict[str, Any], deta
         found = await hotpepper.search(
             station["lat"], station["lng"], range_code=range_code, lunch=details.get("meal") == "lunch",
             private_room=bool(details.get("private_room")), **params)
-        shops = [s for s in found if s["id"] not in exclude and (not s.get("capacity") or s["capacity"] >= pax)]
+        weekday, minute = planned_moment(details)
+        shops = [s for s in found if s["id"] not in exclude and (not s.get("capacity") or s["capacity"] >= pax)
+                 and is_open(s, weekday, minute) is not False]
         if len(shops) >= 3:
             break
     return shops
@@ -101,16 +141,63 @@ def _fallback_reason(shop: dict[str, Any]) -> str:
     return "・".join(b for b in bits if b)[:60]
 
 
+def time_out_picks(index: Optional[TimeOutIndex], station: dict[str, Any], details: dict[str, Any],
+                   exclude: set[str], already_matched: set[str], limit: int = 3) -> list[dict[str, Any]]:
+    """Places Time Out has written about near the station that fit the plan, as extra candidates.
+    Time Out gives no prices or room details, so they're left out when the group asked for those."""
+    if not index or details.get("budget") or details.get("private_room"):
+        return []
+    weekday, minute = planned_moment(details)
+    hints = [details["keyword"]] if details.get("keyword") else GENRE_HINTS.get(details.get("genre") or "", None)
+    if details.get("genre") and hints is None:
+        return []
+    picks = []
+    for _, place in index.nearby(station["lat"], station["lng"], 500 if details.get("near") else 1000):
+        shop = as_shop(place)
+        if shop["id"] in exclude or shop["id"] in already_matched:
+            continue
+        if details.get("meal") in ("lunch", "cafe") and shop["genre"] == "バー":
+            continue
+        if hints and not any(h.lower() in shop["name"].lower() for h in hints):
+            continue
+        if is_open(shop, weekday, minute) is False:
+            continue
+        walk = walk_minutes(shop, station)
+        crowd = crowd_estimate(shop, walk)
+        picks.append({"id": shop["id"], "walk_min": walk, "crowd": crowd,
+                      "reason": f"Time Out で紹介されたお店・駅から徒歩約{walk}分"})
+        if len(picks) >= limit:
+            break
+    return picks
+
+
+def interleave(hotpepper_picks: list[dict[str, Any]], extra: list[dict[str, Any]], size: int) -> list[dict[str, Any]]:
+    """Two HotPepper venues, then one Time Out pick, on each page of three."""
+    out: list[dict[str, Any]] = []
+    hi = ti = 0
+    while len(out) < size and (hi < len(hotpepper_picks) or ti < len(extra)):
+        if len(out) % 3 == 2 and ti < len(extra):
+            out.append(extra[ti]); ti += 1
+        elif hi < len(hotpepper_picks):
+            out.append(hotpepper_picks[hi]); hi += 1
+        else:
+            out.append(extra[ti]); ti += 1
+    return out
+
+
 async def shortlist(llm: LLMClient, hotpepper: HotPepperClient, station: dict[str, Any],
                     details: dict[str, Any], pax: int, exclude: Optional[set[str]] = None,
                     use_llm: bool = True,
-                    featured: Optional[Callable[[dict[str, Any]], Optional[dict]]] = None) -> list[dict[str, Any]]:
+                    featured: Optional[Callable[[dict[str, Any]], Optional[dict]]] = None,
+                    timeout: Optional[TimeOutIndex] = None) -> list[dict[str, Any]]:
     """Up to nine venues, best first: [{id, reason, crowd, walk_min}]."""
     shops = await search_shops(hotpepper, station, details, pax, exclude or set())
     for shop in shops:
         shop["walk_min"] = walk_minutes(shop, station)
         shop["crowd"] = crowd_estimate(shop, shop["walk_min"])
-        shop["featured"] = bool(featured and featured(shop))
+        match = featured(shop) if featured else None
+        shop["featured"] = bool(match)
+        shop["featured_id"] = (match or {}).get("id")
     ordered = _rule_based_order(shops, details)[:15]
 
     picks: list[dict[str, Any]] = []
@@ -141,4 +228,6 @@ Return {{"picks": [{{"id": "...", "reason": "one short Japanese sentence, max 40
     if not picks:
         picks = [{"id": s["id"], "reason": _fallback_reason(s), "crowd": s["crowd"], "walk_min": s["walk_min"]}
                  for s in ordered]
-    return picks[:SHORTLIST_SIZE]
+    matched = {s["featured_id"] for s in shops if s.get("featured_id")}
+    extra = time_out_picks(timeout, station, details, exclude or set(), matched)
+    return interleave(picks, extra, SHORTLIST_SIZE)

@@ -4,6 +4,7 @@ facts collected by jobs/timeout_crawl.py (name and coordinates). The bot shows a
 page and nothing else from it.
 """
 
+import hashlib
 import json
 import logging
 import pathlib
@@ -57,12 +58,48 @@ def _similar(a: str, b: str) -> bool:
     return SequenceMatcher(None, na, nb).ratio() >= 0.72
 
 
+def place_id(url: str) -> str:
+    return "TO" + hashlib.sha1(url.encode()).hexdigest()[:12]
+
+
+def as_shop(place: dict[str, Any]) -> dict[str, Any]:
+    """A Time Out place in the same shape as a HotPepper shop, so cards and votes treat both alike."""
+    section = place.get("section") or ""
+    genre = "バー" if section in ("バー", "ナイトライフ") or place.get("type") == "BarOrPub" else "レストラン"
+    if place.get("type") == "CafeOrCoffeeShop":
+        genre = "カフェ"
+    return {"id": place["id"], "name": place["name"], "address": place.get("address"), "station_name": None,
+            "lat": place["lat"], "lng": place["lng"], "genre": genre, "budget": None, "budget_average": None,
+            "catch": None, "capacity": None, "private_room": None, "lunch": None,
+            "open": place.get("hours"), "close": None, "url": place["url"], "photo": None,
+            "telephone": place.get("telephone"), "source": "timeout"}
+
+
 class TimeOutIndex:
     def __init__(self, places: list[dict[str, Any]]):
         self._grid: dict[tuple[int, int], list[dict[str, Any]]] = {}
+        self._by_id: dict[str, dict[str, Any]] = {}
         for p in places:
+            p = dict(p, id=p.get("id") or place_id(p["url"]))
             self._grid.setdefault(self._cell(p["lat"], p["lng"]), []).append(p)
-        self.size = len(places)
+            self._by_id[p["id"]] = p
+        self.size = len(self._by_id)
+
+    def get(self, pid: str) -> Optional[dict[str, Any]]:
+        return self._by_id.get(pid)
+
+    def nearby(self, lat: float, lng: float, radius_m: float = 1000) -> list[tuple[float, dict[str, Any]]]:
+        """Places within radius_m, nearest first."""
+        cx, cy = self._cell(lat, lng)
+        reach = int(radius_m / 200) + 1
+        found = []
+        for dx in range(-reach, reach + 1):
+            for dy in range(-reach, reach + 1):
+                for place in self._grid.get((cx + dx, cy + dy), []):
+                    d = distance_m(lat, lng, place["lat"], place["lng"])
+                    if d <= radius_m:
+                        found.append((d, place))
+        return sorted(found, key=lambda x: x[0])
 
     @staticmethod
     def _cell(lat: float, lng: float) -> tuple[int, int]:
@@ -96,4 +133,8 @@ class TimeOutIndex:
                             d <= 80 and _shares_distinct_token(shop.get("name", ""), place["name"], area)):
                         if best is None or d < best[0]:
                             best = (d, place)
-        return {"url": best[1]["url"], "name": best[1]["name"]} if best else None
+        if not best:
+            return None
+        place = best[1]
+        return {"id": place["id"], "url": place["url"], "name": place["name"],
+                "telephone": place.get("telephone"), "hours": place.get("hours")}

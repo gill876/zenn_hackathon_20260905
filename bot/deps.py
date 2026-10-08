@@ -42,7 +42,21 @@ class Deps:
             if not ok:
                 log.warning("reply failed for event type %s", ev.get("type"))
 
+    async def shops(self, ids: list[str]) -> dict[str, dict[str, Any]]:
+        """Shop details for HotPepper IDs (J…) and Time Out place IDs (TO…)."""
+        from services.timeout_index import as_shop
+        found: dict[str, dict[str, Any]] = {}
+        hp = [i for i in ids if not i.startswith("TO")]
+        if hp:
+            found.update(await self.hotpepper.shops_by_ids(hp))
+        for i in ids:
+            if i.startswith("TO") and self.timeout and (place := self.timeout.get(i)):
+                found[i] = as_shop(place)
+        return found
+
     def featured(self, shop: dict[str, Any]) -> Optional[dict[str, Any]]:
+        if shop.get("source") == "timeout":
+            return {"id": shop["id"], "url": shop["url"], "name": shop["name"], "telephone": shop.get("telephone")}
         """Time Out's page about this shop, if they've written about it."""
         return self.timeout.match(shop) if self.timeout else None
 

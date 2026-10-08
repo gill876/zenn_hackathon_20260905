@@ -543,7 +543,7 @@ class GroupBot:
                 raise SearchProblem(texts.NO_HUB)
             pax = len(snap["participants"])
             picks = await spot_agent.shortlist(self.d.llm, self.d.hotpepper, station, details, pax,
-                                               featured=self.d.featured)
+                                               featured=self.d.featured, timeout=self.d.timeout)
             if not picks:
                 raise SearchProblem(texts.NO_VENUES)
         except SearchProblem as e:
@@ -582,7 +582,7 @@ class GroupBot:
     async def _carousel(self, plan: dict[str, Any], searches_left: int) -> dict:
         page = plan["page"]
         chunk = plan["picks"][page * PAGE:(page + 1) * PAGE]
-        shops = await self.d.hotpepper.shops_by_ids([p["id"] for p in chunk])
+        shops = await self.d.shops([p["id"] for p in chunk])
         chunk = [p for p in chunk if p["id"] in shops]
         labels = [LABELS[page * PAGE + i] for i in range(len(chunk))]
         pages = math.ceil(len(plan["picks"]) / PAGE)
@@ -620,7 +620,7 @@ class GroupBot:
             details = dict(snap.get("details") or {})
             shown = [p["id"] for p in snap["picks"][:(snap["page"] + 1) * PAGE]]
             if kind == "cheaper":
-                shown_shops = await self.d.hotpepper.shops_by_ids(shown)
+                shown_shops = await self.d.shops(shown)
                 details["budget"] = spot_agent.cheaper_budget(list(shown_shops.values()), details.get("budget"))
                 details["preferences"] = (details.get("preferences") or []) + ["安め"]
             elif kind == "private":
@@ -634,7 +634,7 @@ class GroupBot:
             station = await self.d.stations.by_code(snap["hub"]["code"])
             picks = await spot_agent.shortlist(self.d.llm, self.d.hotpepper, station, details,
                                                len(snap["participants"]), exclude=set(shown),
-                                               featured=self.d.featured)
+                                               featured=self.d.featured, timeout=self.d.timeout)
             if not picks:
                 raise SearchProblem(texts.NO_VENUES)
         except SearchProblem as e:
@@ -692,7 +692,7 @@ class GroupBot:
             await self.d.reply(c.ev, [line_flex.plain(texts.organizer_only(plan_now["organizer_name"]))])
             return
         shown = [p["id"] for p in plan_now["picks"][:(plan_now["page"] + 1) * PAGE]]
-        shops = await self.d.hotpepper.shops_by_ids(shown)
+        shops = await self.d.shops(shown)
         now, s = c.now, self.s
 
         def fn(docs):
@@ -732,10 +732,13 @@ class GroupBot:
     async def _announce(self, c: Ctx, decision: dict[str, Any], shops: dict[str, dict[str, Any]]) -> None:
         shop = shops.get(decision["shop_id"])
         if shop is None:
-            shop = (await self.d.hotpepper.shops_by_ids([decision["shop_id"]])).get(decision["shop_id"])
+            shop = (await self.d.shops([decision["shop_id"]])).get(decision["shop_id"])
         messages: list[dict] = []
         if shop:
-            phone = await self.d.places.phone_number(shop["name"], shop.get("address") or "", shop.get("lat"), shop.get("lng"))
+            known = shop.get("telephone") or (self.d.featured(shop) or {}).get("telephone")
+            phone = known if shop.get("source") == "timeout" else (
+                await self.d.places.phone_number(shop["name"], shop.get("address") or "", shop.get("lat"), shop.get("lng"))
+                or known)
             agent_url = await self._agent_link(decision, shop)
             script = voice_agent.call_script(shop["name"], decision.get("day"), decision.get("time"),
                                              decision["pax"], decision["organizer_name"])

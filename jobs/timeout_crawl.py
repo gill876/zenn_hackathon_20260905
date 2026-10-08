@@ -51,7 +51,11 @@ def _sitemap_entries(client: httpx.Client, index_url: str, delay: float) -> list
     return entries
 
 
-def parse_place(html: str, url: str) -> dict | None:
+_HOURS = re.compile(r"営業時間[^<]{0,4}</[^>]+>\s*<[^>]+>([^<]{1,80})")
+
+
+def parse_place(html: str, url: str, lastmod: str = "") -> dict | None:
+    """Facts about the reviewed place: never the review text or photos."""
     for block in re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.S):
         try:
             data = json.loads(block)
@@ -65,9 +69,15 @@ def parse_place(html: str, url: str) -> dict | None:
             if geo.get("latitude") is None or geo.get("longitude") is None:
                 return None
             address = place.get("address") or {}
-            return {"name": place["name"], "lat": float(geo["latitude"]), "lng": float(geo["longitude"]),
+            hours = _HOURS.search(html)
+            return {"name": place["name"], "type": place.get("@type"),
+                    "lat": float(geo["latitude"]), "lng": float(geo["longitude"]),
                     "address": address.get("streetAddress") if isinstance(address, dict) else None,
-                    "url": url}
+                    "telephone": place.get("telephone"),
+                    "hours": hours.group(1).strip() if hours else None,
+                    "section": unquote(url).split("/ja/", 1)[-1].split("/")[0],
+                    "city": "osaka" if "/osaka/" in url else "tokyo",
+                    "lastmod": lastmod, "url": url}
     return None
 
 
@@ -85,26 +95,32 @@ def main() -> None:
 
     with httpx.Client(headers={"User-Agent": UA}, timeout=20) as client:
         candidates: list[tuple[str, str]] = []
-        for site in SITES:
-            index = f"{site}/sitemap.xml.gz"
-            if not robots.can_fetch(UA, index):
-                continue
-            for url, lastmod in _sitemap_entries(client, index, args.delay):
-                section = unquote(url).split("/ja/", 1)[-1].split("/")[0]
-                if section in VENUE_SECTIONS and lastmod >= args.since and url not in done:
-                    candidates.append((url, lastmod))
+        cache = OUT.with_name("timeout_sitemaps.json")
+        if cache.exists() and time.time() - cache.stat().st_mtime < 86400:
+            entries = [tuple(e) for e in json.loads(cache.read_text())]
+        else:
+            entries = []
+            for site in SITES:
+                index = f"{site}/sitemap.xml.gz"
+                if robots.can_fetch(UA, index):
+                    entries += _sitemap_entries(client, index, args.delay)
+            cache.write_text(json.dumps(entries, ensure_ascii=False))
+        for url, lastmod in entries:
+            section = unquote(url).split("/ja/", 1)[-1].split("/")[0]
+            if section in VENUE_SECTIONS and lastmod >= args.since and url not in done:
+                candidates.append((url, lastmod))
         candidates.sort(key=lambda c: c[1], reverse=True)
         print(f"{len(candidates)} venue pages to fetch (since {args.since})", flush=True)
 
         fetched = found = 0
         with OUT.open("a", encoding="utf-8") as out, DONE.open("a", encoding="utf-8") as done_file:
-            for url, _ in candidates[:args.max]:
+            for url, lastmod in candidates[:args.max]:
                 if not robots.can_fetch(UA, url):
                     continue
                 time.sleep(args.delay)
                 try:
                     html = _get(client, url).decode("utf-8", "replace")
-                    place = parse_place(html, unquote(url))
+                    place = parse_place(html, url, lastmod)
                 except httpx.HTTPError as e:
                     print(f"skip {url}: {e}", flush=True)
                     place = None

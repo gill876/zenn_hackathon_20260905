@@ -179,7 +179,28 @@ def hub_card(hub: dict, people: list[tuple[str, str, int]], summary: str) -> dic
 
 # ---- phase 5: venues and vote -------------------------------------------------------------------
 
+def _time_out_bubble(nonce: str, label: str, shop: dict, pick: dict) -> dict:
+    crowd = (pick.get("crowd") or {}).get("level", "中")
+    walk = f"徒歩約{pick['walk_min']}分" if pick.get("walk_min") else ""
+    body = [
+        text(f"{label}  {shop['name']}", size="md", weight="bold", color=INK),
+        text(" · ".join(x for x in ("Time Out 掲載", shop.get("genre"), walk) if x), size="xs", color=ACCENT, weight="bold"),
+    ]
+    if shop.get("open"):
+        body.append(text(f"営業時間 {shop['open'][:40]}", size="xs", color=INK))
+    body += [
+        text(f"混雑度（推定）{crowd}", size="xs", weight="bold", color=CROWD_COLORS.get(crowd, INK)),
+        text(pick.get("reason") or "", size="xs", color=INK, margin="sm"),
+        text("お店の情報：Time Out（くわしくはリンク先）", size="xxs", color=MUTED, margin="md"),
+    ]
+    footer = [postback(f"{label}に投票", {"a": "vote", "p": nonce, "v": shop["id"]}, f"🗳 {label}に投票"),
+              link("Time Outの記事", shop["url"])]
+    return bubble(body, footer)
+
+
 def _venue_bubble(nonce: str, label: str, shop: dict, pick: dict, featured: Optional[dict] = None) -> dict:
+    if shop.get("source") == "timeout":
+        return _time_out_bubble(nonce, label, shop, pick)
     crowd = pick.get("crowd") or {"level": "中"}
     level = crowd.get("level", "中")
     walk = f"徒歩約{pick['walk_min']}分" if pick.get("walk_min") else (shop.get("station_name") or "")
@@ -234,12 +255,18 @@ def decision_card(shop: dict, when: Optional[str], pax: int, walk_min: Optional[
                   hub_name: str, agent_url: Optional[str]) -> dict:
     hub_name = short_station(hub_name)
     place = f"{hub_name}駅から徒歩約{walk_min}分" if walk_min else f"{hub_name}駅の近く"
+    from_time_out = shop.get("source") == "timeout"
     body = [kicker("決定"), text(shop["name"], size="xl", weight="bold", color=INK),
             rows([("日時", when or "未定"), ("人数", f"{pax}名"), ("場所", place)]),
-            text("まだ予約は完了していません。", size="sm", weight="bold", color=WARN, margin="md"),
-            note(CREDIT_TEXT)]
+            text("まだ予約は完了していません。", size="sm", weight="bold", color=WARN, margin="md")]
+    if from_time_out:
+        body.append(note("営業時間と予約方法は、リンク先かお電話でご確認ください。"))
+    else:
+        body.append(note(CREDIT_TEXT))
     footer = []
-    if shop.get("url"):
+    if from_time_out:
+        footer.append(link("お店の情報（Time Out）", shop["url"], style="primary"))
+    elif shop.get("url"):
         footer.append(link("ホットペッパーで予約", shop["url"], style="primary"))
     if agent_url:
         footer.append(link("AIに入力を任せる（デモ）", agent_url))

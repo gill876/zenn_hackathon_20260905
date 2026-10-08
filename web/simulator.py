@@ -45,7 +45,7 @@ SCENARIOS: dict[str, list[dict[str, str]]] = {
     ],
 }
 HUB_CACHE_SECONDS = 30 * 86400
-_SHOP_ID = re.compile(r"^J\d{6,12}$")
+_SHOP_ID = re.compile(r"^(J\d{6,12}|TO[0-9a-f]{12})$")
 
 
 class ScenarioRequest(BaseModel):
@@ -121,8 +121,8 @@ async def run_pipeline(deps: Deps, messages: list[dict[str, str]], use_llm: bool
     station = await deps.stations.by_code(hub["code"])
     pax = len(senders)
     picks = await spot_agent.shortlist(deps.llm, deps.hotpepper, station, details, pax, use_llm=use_llm,
-                                       featured=deps.featured)
-    shops = await deps.hotpepper.shops_by_ids([p["id"] for p in picks[:3]])
+                                       featured=deps.featured, timeout=deps.timeout)
+    shops = await deps.shops([p["id"] for p in picks[:3]])
     picks = [p for p in picks[:3] if p["id"] in shops]
     logs.append({"agent_name": "Agent 3", "step": f"ホットペッパーで{hub['name']}駅周辺のお店を{len(picks)}軒選定"})
 
@@ -174,7 +174,7 @@ async def reserve(request: Request, req: ReserveRequest) -> dict[str, Any]:
     deps = _deps(request)
     if not _SHOP_ID.match(req.venue_id):
         raise HTTPException(400, "invalid venue id")
-    shop = (await deps.hotpepper.shops_by_ids([req.venue_id])).get(req.venue_id)
+    shop = (await deps.shops([req.venue_id])).get(req.venue_id)
     if not shop:
         raise HTTPException(404, "venue not found")
     plan = req.plan or {}
@@ -196,7 +196,7 @@ async def reserve(request: Request, req: ReserveRequest) -> dict[str, Any]:
         "agent_url": agent_url,
         "bot_messages": [
             {"type": "flex", "flex": line_flex.decision_card(shop, when, pax, walk, plan.get("hub_name") or "", agent_url)},
-            {"type": "flex", "flex": line_flex.script_card(script, None, shop.get("url"))},
+            {"type": "flex", "flex": line_flex.script_card(script, shop.get("telephone"), shop.get("url"))},
         ],
     }
 

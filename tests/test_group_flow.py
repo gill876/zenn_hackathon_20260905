@@ -270,3 +270,29 @@ async def test_participant_cap(deps):
     assert await send(deps, group_postback(join_data, SUZUKI)) == []
     reply = await send(deps, group_postback(join_data, TANAKA))
     assert reply[0]["text"] == texts.full(2)
+
+
+async def test_time_out_pick_can_win_and_uses_time_out_phone(deps):
+    from services.timeout_index import TimeOutIndex
+    deps.timeout = TimeOutIndex([{"name": "路地裏 肉ビストロ", "lat": 35.6990, "lng": 139.7740, "address": "東京都千代田区",
+                                  "telephone": "03-9999-0000", "hours": "11〜23時／定休日は水曜", "section": "レストラン",
+                                  "url": "https://www.timeout.jp/tokyo/ja/レストラン/roji"}])
+    await to_voting(deps)
+    plan = await deps.store.get("plans", deps.ids.chat("C1"))
+    third = plan["picks"][2]
+    assert third["id"].startswith("TO")                       # slot C is the Time Out pick
+    for user in (SATO, SUZUKI, TANAKA):
+        out = await send(deps, group_postback(f"a=vote&p={plan['nonce']}&v={third['id']}", user))
+    assert "路地裏 肉ビストロ" in out[0]["altText"]
+    assert "お店の情報（Time Out）" in str(out[0]) and "ホットペッパーで予約" not in str(out[0])
+    assert "tel:0399990000" in str(out[1])
+    assert deps.places.calls == 0                             # Time Out already had the number
+
+
+async def test_closed_shops_are_dropped_at_the_planned_time(deps):
+    closed = deps.hotpepper.shops["J000000001"]
+    closed["open"] = "月～金: 11:00～14:00 土: 17:00～23:00"   # Saturday lunch: closed
+    closed["close"] = "日"
+    await to_voting(deps)                                     # the plan is 来週土曜 13:00
+    plan = await deps.store.get("plans", deps.ids.chat("C1"))
+    assert "J000000001" not in [p["id"] for p in plan["picks"]]
