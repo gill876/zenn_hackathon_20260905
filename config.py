@@ -111,7 +111,7 @@ def _load() -> Settings:
         daily_search_limit=_int("DAILY_SEARCH_LIMIT", 100),
         daily_llm_limit=_int("DAILY_LLM_LIMIT", 300),
         daily_places_limit=_int("DAILY_PLACES_LIMIT", 30),
-        daily_simulator_limit=_int("DAILY_SIMULATOR_LIMIT", 60),
+        daily_simulator_limit=_int("DAILY_SIMULATOR_LIMIT", 120),
         daily_agent_limit=_int("DAILY_AGENT_LIMIT", 20),
         invite_ttl_days=_int("INVITE_TTL_DAYS", 14),
         held_messages_max=_int("HELD_MESSAGES_MAX", 50),

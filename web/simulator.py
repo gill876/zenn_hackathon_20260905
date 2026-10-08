@@ -174,6 +174,8 @@ async def reserve(request: Request, req: ReserveRequest) -> dict[str, Any]:
     deps = _deps(request)
     if not _SHOP_ID.match(req.venue_id):
         raise HTTPException(400, "invalid venue id")
+    if not await deps.usage.take("simulator"):
+        raise HTTPException(429, "本日のデモ実行回数の上限に達しました。LINE版をお試しください。")
     shop = (await deps.shops([req.venue_id])).get(req.venue_id)
     if not shop:
         raise HTTPException(404, "venue not found")

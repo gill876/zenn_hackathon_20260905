@@ -94,7 +94,7 @@ To read the admin token: `gcloud secrets versions access latest --secret=admin-a
 | `MAX_PARTICIPANTS` | 10 | Per plan |
 | `GROUPS_PER_USER` | 2 | Groups each verified person can activate (admin: unlimited) |
 | `DAILY_SEARCH_LIMIT` / `DAILY_LLM_LIMIT` / `DAILY_PLACES_LIMIT` | 100 / 300 / 30 | Whole service, per day (Japan time) |
-| `DAILY_SIMULATOR_LIMIT` / `DAILY_AGENT_LIMIT` | 60 / 20 | Web demo runs and form agent runs per day |
+| `DAILY_SIMULATOR_LIMIT` / `DAILY_AGENT_LIMIT` | 120 / 20 | Web demo calls (scenario runs and venue picks) and form agent runs per day |
 | `INVITE_TTL_DAYS` | 14 | |
 
 Change one with `gcloud run services update asobi-agent --update-env-vars=SEARCHES_PER_GROUP=5 --region=asia-northeast1 --project=$PROJECT_ID`.
