@@ -6,7 +6,7 @@ person's own message and the bot can stay quiet until something actually changes
 """
 
 from typing import Any, Optional
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from bot.text_parse import short_station
 from services.hotpepper_client import CREDIT_TEXT, CREDIT_URL
@@ -60,8 +60,13 @@ def postback(label: str, data: dict[str, str], display: Optional[str] = None, st
     return button
 
 
+def safe_uri(uri: str) -> str:
+    """LINE rejects URIs with raw non-ASCII characters (e.g. Time Out's /レストラン/ paths)."""
+    return quote(uri, safe=":/?#[]@!$&'()*+,;=%~")
+
+
 def link(label: str, uri: str, style: str = "secondary") -> dict:
-    button: dict[str, Any] = {"type": "button", "action": {"type": "uri", "label": label[:40], "uri": uri},
+    button: dict[str, Any] = {"type": "button", "action": {"type": "uri", "label": label[:40], "uri": safe_uri(uri)},
                               "style": style, "height": "sm"}
     if style == "primary":
         button["color"] = GREEN
