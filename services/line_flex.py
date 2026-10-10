@@ -124,7 +124,8 @@ def activated(plans: int, searches: int, until: str) -> dict:
         [kicker("有効化"), title("使えるようになりました"),
          rows([("決められるお店", f"{plans}軒"), ("検索", f"{searches}回まで"), ("期限", f"{until}まで")]),
          note("予定を立てるときは @AsobiAgent で呼ぶか、下のボタンを押してください。")],
-        [postback("プランを立てる", {"a": "start"}, "プランを立てる")]))
+        [postback("日程を決める", {"a": "poll"}, "日程を決める"),
+         postback("プランを立てる", {"a": "start"}, "プランを立てる", style="secondary")]))
 
 
 # ---- phase 2–3: gathering and ready check -------------------------------------------------------
@@ -193,12 +194,40 @@ def _time_out_bubble(nonce: str, label: str, shop: dict, pick: dict) -> dict:
         text(pick.get("reason") or "", size="xs", color=INK, margin="sm"),
         text("お店の情報：Time Out（くわしくはリンク先）", size="xxs", color=MUTED, margin="md"),
     ]
-    footer = [postback(f"{label}に投票", {"a": "vote", "p": nonce, "v": shop["id"]}, f"🗳 {label}に投票"),
-              link("Time Outの記事", shop["url"])]
+    footer = [_vote_button(nonce, label, shop), link("Time Outの記事", shop["url"])]
     return bubble(body, footer)
 
 
+def _vote_button(nonce: str, label: str, shop: dict) -> dict:
+    return postback("🗳 ここがいい", {"a": "vote", "p": nonce, "v": shop["id"]}, f"🗳 {label} {shop['name'][:14]}")
+
+
+def suggestion_bubble(nonce: str, label: str, shop: dict, pick: dict) -> dict:
+    walk = f"集合駅から徒歩約{pick['walk_min']}分" if pick.get("walk_min") else None
+    body = [text(f"💡 {label}  {shop['name']}", size="md", weight="bold", color=INK),
+            text(" · ".join(x for x in (shop.get("genre"), walk) if x) or "提案されたお店", size="xs", color=MUTED),
+            text(f"{pick.get('suggested_by', 'メンバー')}さんの提案", size="xs", color=ACCENT, weight="bold", margin="sm")]
+    if shop.get("address"):
+        body.append(text(shop["address"][:40], size="xxs", color=MUTED))
+    if shop.get("source") == "hotpepper" or shop["id"].startswith("J"):
+        body.append(text(CREDIT_TEXT, size="xxs", color=MUTED, margin="md"))
+    footer = [_vote_button(nonce, label, shop)]
+    if shop.get("url"):
+        footer.append(link("お店の詳細" if shop["id"].startswith("J") else "地図で見る", shop["url"]))
+    hero = None
+    if shop.get("photo"):
+        hero = {"type": "image", "url": shop["photo"], "size": "full", "aspectRatio": "20:13", "aspectMode": "cover"}
+    return bubble(body, footer, hero=hero)
+
+
+def suggestion_card(nonce: str, label: str, shop: dict, pick: dict) -> dict:
+    return flex(f"{pick.get('suggested_by', 'メンバー')}さんの提案：{shop['name']}",
+                {"type": "carousel", "contents": [suggestion_bubble(nonce, label, shop, pick)]})
+
+
 def _venue_bubble(nonce: str, label: str, shop: dict, pick: dict, featured: Optional[dict] = None) -> dict:
+    if pick.get("suggested_by"):
+        return suggestion_bubble(nonce, label, shop, pick)
     if shop.get("source") == "timeout":
         return _time_out_bubble(nonce, label, shop, pick)
     crowd = pick.get("crowd") or {"level": "中"}
@@ -217,7 +246,7 @@ def _venue_bubble(nonce: str, label: str, shop: dict, pick: dict, featured: Opti
     hero = None
     if shop.get("photo"):
         hero = {"type": "image", "url": shop["photo"], "size": "full", "aspectRatio": "20:13", "aspectMode": "cover"}
-    footer = [postback(f"{label}に投票", {"a": "vote", "p": nonce, "v": shop["id"]}, f"🗳 {label}に投票")]
+    footer = [_vote_button(nonce, label, shop)]
     if shop.get("url"):
         footer.append(link("お店の詳細", shop["url"]))
     if featured:
@@ -226,27 +255,83 @@ def _venue_bubble(nonce: str, label: str, shop: dict, pick: dict, featured: Opti
 
 
 def venues_carousel(nonce: str, shops: list[dict], picks: list[dict], labels: list[str],
-                    more_left: int, searches_left: int, featured: Optional[list[Optional[dict]]] = None) -> dict:
+                    more_left: int, searches_left: int, featured: Optional[list[Optional[dict]]] = None,
+                    leader: Optional[str] = None, can_suggest: bool = True) -> dict:
     featured = featured or [None] * len(shops)
     bubbles = [_venue_bubble(nonce, label, shop, pick, f)
                for label, shop, pick, f in zip(labels, shops, picks, featured)]
     options: list[dict] = []
     if more_left > 0:
-        options.append(postback(f"ほかの3軒（あと{more_left}回）", {"a": "more", "p": nonce}, "ほかの候補を見る",
+        options.append(postback(f"別の候補を見る（あと{more_left}回）", {"a": "more", "p": nonce}, "別の候補を見る",
                                 style="secondary"))
-    if searches_left > 0:
-        options += [
-            postback("もっと安く", {"a": "refine", "p": nonce, "r": "cheaper"}, "もっと安いお店がいい", style="secondary"),
-            postback("個室がいい", {"a": "refine", "p": nonce, "r": "private"}, "個室がいい", style="secondary"),
-            postback("駅の近く", {"a": "refine", "p": nonce, "r": "near"}, "駅の近くがいい", style="secondary"),
-        ]
-    options.append(postback("投票を締め切る（幹事）", {"a": "close", "p": nonce}, "投票を締め切る", style="link"))
-    tail_body = [kicker("候補を変える"), title("ほかの希望はありますか？"),
-                 text("「@AsobiAgent 和食がいい」のように送っても探し直せます。", size="xs", color=MUTED, margin="md"),
-                 note(f"条件を変えて探せるのはあと{searches_left}回です。" if searches_left > 0
-                      else "このグループの検索回数を使い切りました。今の候補から選んでください。")]
+    if can_suggest:
+        options.append(postback("💡 お店を提案する", {"a": "suggest", "p": nonce}, "💡 お店を提案する", style="secondary"))
+    options += [postback("📊 結果を見る", {"a": "results", "p": nonce}, "📊 結果を見る", style="secondary"),
+                postback("決める（幹事）", {"a": "close", "p": nonce}, "決める", style="link")]
+    hint = ("条件を変えるなら「@AsobiAgent 和食がいい」のように送ってください"
+            f"（あと{searches_left}回）。" if searches_left > 0 else "このグループの検索回数を使い切りました。")
+    tail_body = [kicker("ほかの候補"), title("いいと思うお店に、いくつでも投票してください"),
+                 text(f"いまの1位：{leader}" if leader else "いまの1位：まだ投票がありません", size="xs", color=INK, margin="md"),
+                 note(hint)]
     bubbles.append(bubble(tail_body, options))
-    return flex("お店の候補です。気に入ったお店に投票してください。", {"type": "carousel", "contents": bubbles})
+    return flex("お店の候補です。いいと思うお店にいくつでも投票してください。", {"type": "carousel", "contents": bubbles})
+
+
+def results_card(rows: list[tuple[str, int]], voters: int, total: int, missing: list[str], heading: str,
+                 nonce: Optional[str] = None) -> dict:
+    scale = max(1, total)
+    bars = [_bar(name[:10], count, scale) for name, count in rows[:6]]
+    for b in bars:   # the bar helper shows minutes; votes read better as plain counts
+        b["contents"][2]["text"] = b["contents"][2]["text"].replace("分", "")
+    body = [kicker(f"{'投票結果' if voters >= total else '途中結果'} · {voters}/{total}人が投票"), title(heading),
+            box(bars, spacing="sm", margin="md") if bars else text("まだ投票がありません。", size="sm")]
+    if missing:
+        body.append(note("まだの人：" + "・".join(missing[:8])))
+    footer = [postback("決める（幹事）", {"a": "close", "p": nonce}, "決める", style="secondary")] if nonce and voters < total else None
+    return flex(f"{heading}（{voters}/{total}人が投票）", bubble(body, footer, size="mega"))
+
+
+# ---- profiles and date poll ---------------------------------------------------------------------
+
+def profile_offer(liff_url: str) -> dict:
+    return flex("好きなお店を登録しておくと、グループで自動で使われます。", bubble(
+        [kicker("プロフィール"), title("好きなお店を登録しませんか？"),
+         text("登録しておくと、グループでお店を探すときに自動で使われます。", size="sm", margin="md"),
+         note("タップするだけ。あとから変更・削除できます。")],
+        [link("プロフィールを作る", liff_url, style="primary")]))
+
+
+def poll_start(calendar_url: str, organizer: str) -> dict:
+    return flex("日程調整：候補日をカレンダーでえらんでください。", bubble(
+        [kicker("日程調整"), title("候補日をカレンダーでえらんでください"),
+         note(f"幹事（{organizer}さん）がえらぶと、ここに○△×の表が届きます。")],
+        [link("候補日をえらぶ", calendar_url, style="primary")]))
+
+
+def poll_card(nonce: str, date_labels: list[str], slot: str, answer_url: str, answered: int) -> dict:
+    body = [kicker("日程調整"), title("候補日に○△×をつけてください"),
+            rows([("候補", "・".join(date_labels)), ("時間帯", slot), ("回答", f"{answered}人")])]
+    return flex("日程調整：候補日に○△×をつけてください。", bubble(body, [
+        link("回答する", answer_url, style="primary"),
+        postback("📊 結果を見る", {"a": "pollres", "p": nonce}, "📊 日程の結果を見る", style="secondary"),
+        postback("締め切る（幹事）", {"a": "pollclose", "p": nonce}, "締め切る", style="link"),
+    ], size="mega"))
+
+
+def poll_result(nonce: str, best: Optional[str], yes: list[str], maybe: list[str], runner_up: Optional[str],
+                table: list[tuple[str, int, int, int]], closed: bool) -> dict:
+    head = (f"{best} に決まりました" if closed else f"いまの1位：{best}") if best else "まだ回答がありません"
+    body = [kicker("日程が決まりました" if closed else "日程調整の途中結果"), title(head)]
+    if table:
+        body.append(box([box([text(d, size="xs", color=INK, flex=4), text(f"○{o} △{t} ×{x}", size="xs", color=MUTED, flex=4, align="end")],
+                             layout="horizontal") for d, o, t, x in table[:8]], spacing="xs", margin="md"))
+    if best:
+        body.append(rows([("○", "・".join(yes) or "—"), ("△", "・".join(maybe) or "—")]))
+    if runner_up and closed:
+        body.append(note(f"次点：{runner_up}"))
+    footer = [postback("このメンバーでプランを立てる", {"a": "pollplan", "p": nonce}, "このメンバーでプランを立てる")] \
+        if closed and best else None
+    return flex(head, bubble(body, footer, size="mega"))
 
 
 # ---- phase 6: decision --------------------------------------------------------------------------
@@ -259,13 +344,15 @@ def decision_card(shop: dict, when: Optional[str], pax: int, walk_min: Optional[
     body = [kicker("決定"), text(shop["name"], size="xl", weight="bold", color=INK),
             rows([("日時", when or "未定"), ("人数", f"{pax}名"), ("場所", place)]),
             text("まだ予約は完了していません。", size="sm", weight="bold", color=WARN, margin="md")]
-    if from_time_out:
+    if from_time_out or shop.get("source") == "places":
         body.append(note("営業時間と予約方法は、リンク先かお電話でご確認ください。"))
     else:
         body.append(note(CREDIT_TEXT))
     footer = []
     if from_time_out:
         footer.append(link("お店の情報（Time Out）", shop["url"], style="primary"))
+    elif shop.get("source") == "places" and shop.get("url"):
+        footer.append(link("地図で見る", shop["url"], style="primary"))
     elif shop.get("url"):
         footer.append(link("ホットペッパーで予約", shop["url"], style="primary"))
     if agent_url:

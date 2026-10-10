@@ -21,7 +21,7 @@ from bot.handler import handle_payload
 from config import get_settings
 from services.line_api import HttpLineApi, RecordingLineApi, verify_signature
 from services.store import MemoryStore
-from web import agent_pages, simulator
+from web import agent_pages, liff, simulator
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("server")
@@ -38,6 +38,8 @@ def default_deps() -> Deps:
         store = MemoryStore()
     line = HttpLineApi(settings.line_channel_access_token) if settings.line_channel_access_token else RecordingLineApi()
     deps = build_deps(settings, store, line)
+    from services.liff_auth import LineIdTokenVerifier
+    deps.liff = LineIdTokenVerifier(settings.line_login_channel_id)
     if settings.form_agent_mode == "job" and settings.gcp_project:
         from agents.form_agent import CloudRunJobRunner
         deps.form_agent = CloudRunJobRunner(settings.gcp_project, settings.region, settings.form_agent_job)
@@ -52,6 +54,7 @@ def create_app(deps: Optional[Deps] = None) -> FastAPI:
     app.state.deps = deps or default_deps()
     app.include_router(simulator.router)
     app.include_router(agent_pages.router)
+    app.include_router(liff.router)
 
     @app.post("/webhook")
     async def line_webhook(request: Request) -> JSONResponse:

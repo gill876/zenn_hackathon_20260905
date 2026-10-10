@@ -51,6 +51,9 @@ class FakeEkispert:
         self.calls.append(("code", code))
         return next((s for s in STATIONS.values() if s["code"] == code), None)
 
+    async def stations_near(self, lat, lng, count=3, radius_m=2000):
+        return [dict(STATIONS["中目黒"], distance_m=14), dict(STATIONS["秋葉原"], distance_m=900)][:count]
+
     async def search_ranges(self, names: list[str], upper_minutes: int, upper_transfers: int = 2):
         self.calls.append(("ranges", tuple(names)))
         table = {"横浜": 42, "吉祥寺": 39, "中目黒": 40, "柏": 44}
@@ -84,6 +87,12 @@ class FakePlaces:
         self.calls += 1
         return "03-1234-5678"
 
+    async def find_place(self, name, lat, lng, radius_m=2000):
+        if name != "知らない店":
+            return None
+        return {"place_id": "pl1", "name": "知らない店", "address": "東京都千代田区", "telephone": "03-5555-0000",
+                "lat": 35.6990, "lng": 139.7735, "url": "https://maps.google.com/?cid=1", "genre": "レストラン"}
+
 
 class Clock:
     def __init__(self, now: float = 1_790_000_000.0):
@@ -100,6 +109,7 @@ def make_settings(**overrides: Any) -> Settings:
     base = dict(
         on_cloud_run=False, public_base_url="https://asobi.example", line_channel_secret="test-secret",
         line_channel_access_token="", line_admin_user_id=ADMIN, line_bot_basic_id="@test",
+        line_login_channel_id="1234567890", liff_id="1234567890-abcdefgh",
         gmi_api_key="", gmi_base_url="", gmi_model="", ekispert_api_key="k", ekispert_mcp_url="",
         hotpepper_api_key="k", places_api_key="k", app_secret="test-app-secret", admin_api_token="admin-token",
         store_backend="memory", gcp_project="", region="asia-northeast1", form_agent_mode="off",
@@ -124,6 +134,8 @@ def make_deps(**overrides: Any) -> Deps:
                 usage=usage, llm=LLMClient("", "", ""), ekispert=ekispert,
                 stations=StationResolver(ekispert, store, clock=clock), hotpepper=FakeHotPepper(),
                 places=FakePlaces(), clock=clock)
+    from services.liff_auth import FakeVerifier
+    deps.liff = FakeVerifier()
     return deps
 
 

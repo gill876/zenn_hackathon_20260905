@@ -34,7 +34,7 @@ SECRETS=(
   "hotpepper-api-key:HOTPEPPER_API_KEY"
   "places-api-key:GOOGLE_PLACES_API_KEY"
 )
-TTL_COLLECTIONS=(groups plans invites events daily agent_runs cache_station cache_station_code cache_hotpepper cache_shop cache_hub)
+TTL_COLLECTIONS=(groups plans invites events daily agent_runs profiles polls cache_station cache_station_code cache_hotpepper cache_shop cache_hub)
 
 env_value() {  # prints a .env value without a trailing newline (never echoed to the terminal by this script)
   "$PY" -I -c "import sys; from dotenv import dotenv_values; sys.stdout.write(dotenv_values('.env').get(sys.argv[1]) or '')" "$1"
@@ -168,7 +168,7 @@ app() {
   gcloud run deploy "$SERVICE" --image="$image" --region="$REGION" "${P[@]}" \
     --service-account="$WEB_SA" --allow-unauthenticated \
     --min-instances=0 --max-instances=3 --concurrency=40 --cpu=1 --memory=512Mi --timeout=60 \
-    --set-env-vars="STORE_BACKEND=firestore,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},REGION=${REGION},FORM_AGENT_MODE=job,FORM_AGENT_JOB=${JOB},LINE_BOT_BASIC_ID=$(env_value LINE_BOT_BASIC_ID),PUBLIC_BASE_URL=${url},GMI_MODEL=$(env_value GMI_MODEL)" \
+    --set-env-vars="STORE_BACKEND=firestore,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},REGION=${REGION},FORM_AGENT_MODE=job,FORM_AGENT_JOB=${JOB},LINE_BOT_BASIC_ID=$(env_value LINE_BOT_BASIC_ID),LINE_LOGIN_CHANNEL_ID=$(env_value LINE_LOGIN_CHANNEL_ID),LIFF_ID=$(env_value LIFF_ID),PUBLIC_BASE_URL=${url},GMI_MODEL=$(env_value GMI_MODEL)" \
     --set-secrets="$(secret_flags)"
   echo "Live: $url  (webhook: $url/webhook, privacy policy: $url/privacy)"
 }

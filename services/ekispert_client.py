@@ -74,6 +74,18 @@ class EkispertClient:
         points = _as_list(data.get("ResultSet", {}).get("Point"))
         return _point(points[0]) if points else None
 
+    async def stations_near(self, lat: float, lng: float, count: int = 3, radius_m: int = 2000) -> list[dict[str, Any]]:
+        """Nearest train stations to a point, with distance in metres (used once, coordinates aren't kept)."""
+        data = await self._call("ekispert_api_get_stations_from_geo", {
+            "latitude": f"{lat:.6f}", "longitude": f"{lng:.6f}", "radius": radius_m, "types": ["train"],
+            "stationCount": count, "gcs": "wgs84"})
+        out = []
+        for p in _as_list(data.get("ResultSet", {}).get("Point")):
+            st = _point(p)
+            st["distance_m"] = int(p.get("Distance", 0) or 0)
+            out.append(st)
+        return out
+
     async def search_ranges(self, base_names: list[str], upper_minutes: int,
                             upper_transfers: int = 2) -> list[dict[str, Any]]:
         """Stations reachable by everyone within `upper_minutes`, with each base's average minutes."""

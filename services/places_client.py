@@ -62,3 +62,35 @@ class PlacesClient:
             if distance_m(lat, lng, loc.get("latitude", 0), loc.get("longitude", 0)) > 250:
                 return None
         return place.get("nationalPhoneNumber")
+
+
+    async def find_place(self, name: str, lat: Optional[float], lng: Optional[float], radius_m: float = 2000) -> Optional[dict]:
+        """A place by name near a point: name, address, phone, location and its Google Maps link."""
+        if not self.api_key or not name:
+            return None
+        if self._usage and not await self._usage.take("places"):
+            return None
+        body: dict = {"textQuery": name, "languageCode": "ja", "regionCode": "JP", "pageSize": 1}
+        if lat is not None and lng is not None:
+            body["locationBias"] = {"circle": {"center": {"latitude": lat, "longitude": lng}, "radius": radius_m}}
+        headers = {"X-Goog-Api-Key": self.api_key,
+                   "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,"
+                                       "places.nationalPhoneNumber,places.googleMapsUri,places.primaryTypeDisplayName"}
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.post(SEARCH_URL, json=body, headers=headers)
+            if resp.status_code >= 300:
+                log.warning("Places find -> %s %s", resp.status_code, resp.text[:200])
+                return None
+            places = resp.json().get("places", [])
+        except httpx.HTTPError as e:
+            log.warning("Places find failed: %s", e)
+            return None
+        if not places:
+            return None
+        p = places[0]
+        loc = p.get("location") or {}
+        return {"place_id": p.get("id"), "name": (p.get("displayName") or {}).get("text") or name,
+                "address": p.get("formattedAddress"), "telephone": p.get("nationalPhoneNumber"),
+                "lat": loc.get("latitude"), "lng": loc.get("longitude"), "url": p.get("googleMapsUri"),
+                "genre": (p.get("primaryTypeDisplayName") or {}).get("text")}

@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AsobiAgent</title>
+<style>
+:root{--bg:#F4F6F9;--card:#FFFFFF;--ink:#1A2130;--muted:#5C6677;--line:#DCE2EA;--green:#06C755;--green-soft:#E3F6EA;--green-ink:#1E7A45;
+  --blue:#2D58A6;--blue-soft:#E3EAF7;--warn:#A9590B;--warn-soft:#FBEAD6;--gone:#EEF1F5}
+@media (prefers-color-scheme: dark){:root{--bg:#11151B;--card:#1A2029;--ink:#E5E9F0;--muted:#9AA4B4;--line:#2B3340;--green-soft:#13291E;
+  --green-ink:#6CC79A;--blue:#86A8E8;--blue-soft:#1F2A40;--warn:#F0A34A;--warn-soft:#33240F;--gone:#222935}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;line-height:1.55;
+  padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+main{max-width:520px;margin:0 auto;padding:16px 14px 110px;display:flex;flex-direction:column;gap:12px}
+h1{font-size:19px;margin:0}
+.sub{color:var(--muted);font-size:13px;margin:0}
+.tag{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--blue);letter-spacing:.04em}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tile{position:relative;border:1.5px solid var(--line);border-radius:14px;padding:12px 4px 10px;text-align:center;font-size:13px;
+  background:var(--card);cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;min-height:84px}
+.tile .em{display:block;font-size:24px;line-height:1.2;margin-bottom:3px}
+.tile .from{display:block;font-size:10px;color:var(--muted)}
+.tile.on{border-color:var(--green);background:var(--green-soft)}
+.tile.on::after{content:"♡";position:absolute;top:5px;left:8px;font-size:12px;font-weight:700;color:var(--green-ink)}
+.tile.off{background:var(--gone);color:var(--muted);text-decoration:line-through;border-style:dashed}
+.x{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:var(--card);
+  color:var(--muted);font-size:12px;display:grid;place-items:center;cursor:pointer}
+.tile.off .x{border-color:var(--warn);color:var(--warn)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;justify-content:center}
+.bar .in{max-width:520px;width:100%;display:flex;gap:8px}
+button{font:inherit}
+.btn{flex:1;border:0;border-radius:12px;padding:13px 10px;font-weight:700;font-size:14px;background:var(--green);color:#fff;cursor:pointer}
+.btn.sec{background:transparent;color:var(--blue);border:1px solid var(--line)}
+.btn.danger{background:transparent;color:var(--warn);border:1px solid var(--warn)}
+.btn:disabled{opacity:.45}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.list button{display:flex;justify-content:space-between;border:0;border-top:1px solid var(--line);background:transparent;color:var(--ink);
+  padding:12px 14px;font-size:14px;text-align:left;cursor:pointer}
+.list button:first-child{border-top:0}
+.list button.sel{background:var(--blue-soft);color:var(--blue);font-weight:700}
+.list .d{color:var(--muted);font-size:12px}
+input[type=search],input[type=time]{width:100%;font:inherit;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+.rows{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px}
+.rows .k{color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;background:var(--card);color:var(--ink);cursor:pointer}
+.chip.sel{border-color:var(--blue);background:var(--blue-soft);color:var(--blue);font-weight:700}
+.month{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+.month h2{font-size:15px;margin:0 0 8px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center;font-size:14px}
+.cal .dow{font-size:11px;color:var(--muted)}
+.cal button{border:0;background:transparent;color:var(--ink);padding:9px 0;border-radius:10px;font-size:14px;cursor:pointer}
+.cal button:disabled{color:var(--line);cursor:default}
+.cal button.sel{background:var(--blue);color:#fff;font-weight:700}
+.cal .sun{color:var(--warn)}
+.table{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:center;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;padding-left:10px}
+thead th{font-weight:600;font-size:11px;color:var(--muted)}
+tr.best td{background:var(--green-soft)}
+.o{color:var(--green-ink);font-weight:700}.t{color:var(--warn);font-weight:700}.x2{color:var(--muted)}
+.mine{display:flex;flex-direction:column;gap:8px}
+.mrow{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:var(--card);color:var(--muted);padding:7px 14px;font-weight:700;font-size:15px;cursor:pointer}
+.seg button + button{border-left:1px solid var(--line)}
+.seg button.on-o{background:var(--green-soft);color:var(--green-ink)}
+.seg button.on-t{background:var(--warn-soft);color:var(--warn)}
+.seg button.on-x{background:var(--gone);color:var(--ink)}
+.toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;
+  font-size:13px;z-index:10}
+.center{text-align:center;color:var(--muted);padding:40px 0}
+.err{color:var(--warn);font-size:13px}
+</style>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+<main id="app"><p class="center">読み込み中…</p></main>
+<div class="bar" id="bar" hidden><div class="in" id="barIn"></div></div>
+<script>
+const LIFF_ID = "__LIFF_ID__";
+const $app = document.getElementById("app");
+const $bar = document.getElementById("bar"), $barIn = document.getElementById("barIn");
+let idToken = "";
+
+function h(tag, attrs = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (v === true) el.setAttribute(k, "");
+    else if (v !== false && v != null) el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  return el;
+}
+function render(...nodes) { $app.replaceChildren(...nodes); window.scrollTo(0, 0); }
+function bar(...buttons) { $bar.hidden = !buttons.length; $barIn.replaceChildren(...buttons); }
+function toast(text) { const t = h("div", {class: "toast"}, text); document.body.append(t); setTimeout(() => t.remove(), 2200); }
+async function api(path, opts = {}) {
+  const res = await fetch(path, {...opts, headers: {"Content-Type": "application/json", "Authorization": "Bearer " + idToken, ...(opts.headers || {})}});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || "うまくいきませんでした");
+  return data;
+}
+async function say(text) {
+  try {
+    if (liff.isInClient() && liff.getContext() && ["group", "room", "utou"].includes(liff.getContext().type)) {
+      await liff.sendMessages([{type: "text", text}]);
+      return true;
+    }
+  } catch (e) { console.warn(e); }
+  return false;
+}
+function param(name) { return new URLSearchParams(location.search).get(name) || ""; }
+
+// ---------- profile ----------
+const P = {tax: null, likes: new Set(), dislikes: new Set(), station: null, round: 1, page: 0};
+
+async function profile() {
+  const [tax, prof] = await Promise.all([api("/api/liff/taxonomy"), api("/api/liff/profile")]);
+  P.tax = tax; P.likes = new Set(prof.likes); P.dislikes = new Set(prof.dislikes); P.station = prof.station;
+  prof.exists ? summary() : round1();
+}
+function tile(item, from) {
+  const id = item.id;
+  const el = h("div", {class: "tile" + (P.likes.has(id) ? " on" : "") + (P.dislikes.has(id) ? " off" : ""), role: "button"},
+    h("span", {class: "em"}, item.emoji), item.label, from ? h("span", {class: "from"}, from) : null);
+  const x = h("span", {class: "x", "aria-label": item.label + "をなしにする"}, "✕");
+  x.addEventListener("click", e => { e.stopPropagation(); if (P.dislikes.has(id)) P.dislikes.delete(id); else { P.dislikes.add(id); P.likes.delete(id); } redraw(); });
+  el.addEventListener("click", () => { if (P.dislikes.has(id)) P.dislikes.delete(id); else if (P.likes.has(id)) P.likes.delete(id); else P.likes.add(id); redraw(); });
+  el.append(x);
+  return el;
+}
+function redraw() { P.round === 1 ? round1() : roundN(); }
+function counts(ids) { const l = ids.filter(i => P.likes.has(i)).length, d = ids.filter(i => P.dislikes.has(i)).length; return `♡ ${l} ・ なし ${d} ・ 残り ${ids.length - d}`; }
+function round1() {
+  P.round = 1;
+  const kinds = P.tax.kinds;
+  render(h("span", {class: "tag"}, "ROUND 1"), h("h1", {}, "好きなお店をえらぶ"),
+    h("p", {class: "sub"}, "タップで♡、✕で「なし」。えらばなかったものは「どちらでも」になります。"),
+    h("div", {class: "grid"}, kinds.map(k => tile(k))), h("p", {class: "sub"}, counts(kinds.map(k => k.id))));
+  bar(h("button", {class: "btn sec", onclick: stationStep}, "ここで次へ"), h("button", {class: "btn", onclick: () => { P.page = 0; roundN(); }}, "残りからもっと見る"));
+}
+function subPool() {
+  const kept = P.tax.kinds.filter(k => !P.dislikes.has(k.id));
+  kept.sort((a, b) => (P.likes.has(b.id) ? 1 : 0) - (P.likes.has(a.id) ? 1 : 0));
+  return kept.flatMap(k => k.subs.map(s => ({...s, from: k.label})));
+}
+function roundN() {
+  P.round = 2;
+  const pool = subPool(), size = 9, pages = Math.max(1, Math.ceil(pool.length / size));
+  P.page = Math.min(P.page, pages - 1);
+  const items = pool.slice(P.page * size, P.page * size + size);
+  render(h("span", {class: "tag"}, `ROUND ${P.page + 2} · 残ったお店から`), h("h1", {}, "もう少しくわしく"),
+    h("p", {class: "sub"}, "♡をつけたお店から先に出しています。"),
+    h("div", {class: "grid"}, items.map(s => tile(s, s.from))), h("p", {class: "sub"}, counts(items.map(s => s.id))));
+  const more = P.page + 1 < pages;
+  bar(h("button", {class: "btn sec", onclick: () => { if (P.page > 0) { P.page--; roundN(); } else round1(); }}, "戻る"),
+      more ? h("button", {class: "btn sec", onclick: () => { P.page++; roundN(); }}, "もっと見る") : null,
+      h("button", {class: "btn", onclick: stationStep}, "次へ（出発駅）"));
+}
+function stationStep() {
+  let results = [], picked = P.station, err = "", timer = null;
+  const list = h("div", {class: "list"}), errEl = h("p", {class: "err"});
+  const draw = () => {
+    list.replaceChildren(...results.map(s => h("button", {class: picked && picked.code === s.code ? "sel" : "", onclick: () => { picked = s; draw(); }},
+      h("span", {}, s.name), h("span", {class: "d"}, s.distance_m != null ? `${Math.max(1, Math.round(s.distance_m / 80))}分` : (s.pref || "")))));
+    list.hidden = !results.length; errEl.textContent = err;
+    save.disabled = !picked;
+  };
+  const here = h("button", {class: "btn sec", onclick: () => {
+    if (!navigator.geolocation) { err = "この端末では位置情報が使えません。駅名で検索してください。"; return draw(); }
+    here.disabled = true; here.textContent = "さがしています…";
+    navigator.geolocation.getCurrentPosition(async pos => {
+      try { results = (await api("/api/liff/stations/near", {method: "POST", body: JSON.stringify({lat: pos.coords.latitude, lng: pos.coords.longitude})})).stations; picked = results[0] || picked; err = ""; }
+      catch (e) { err = e.message; }
+      here.disabled = false; here.textContent = "📍 現在地から探す"; draw();
+    }, () => { err = "位置情報を使えませんでした。駅名で検索してください。"; here.disabled = false; here.textContent = "📍 現在地から探す"; draw(); },
+    {enableHighAccuracy: false, timeout: 10000, maximumAge: 600000});
+  }}, "📍 現在地から探す");
+  const q = h("input", {type: "search", placeholder: "駅名で検索（例：中目黒）", enterkeyhint: "search"});
+  q.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(async () => {
+    if (!q.value.trim()) return;
+    try { results = (await api("/api/liff/stations?q=" + encodeURIComponent(q.value.trim()))).stations; err = results.length ? "" : "見つかりませんでした。"; }
+    catch (e) { err = e.message; }
+    draw(); }, 350); });
+  const save = h("button", {class: "btn", onclick: async () => {
+    save.disabled = true;
+    try { const r = await api("/api/liff/profile", {method: "PUT", body: JSON.stringify({likes: [...P.likes], dislikes: [...P.dislikes], station_code: picked && picked.code})});
+          P.station = r.station; toast("保存しました"); summary(); }
+    catch (e) { err = e.message; save.disabled = false; draw(); }
+  }}, "保存する");
+  results = picked ? [picked] : [];
+  render(h("h1", {}, "いつもの出発駅"), here, list, h("p", {class: "sub"}, "または駅名で検索"), q,
+    h("p", {class: "sub"}, "位置情報は駅を探すためだけに使い、保存しません。"), errEl);
+  bar(h("button", {class: "btn sec", onclick: redraw}, "戻る"), save);
+  draw();
+}
+function labelOf(id) {
+  for (const k of P.tax.kinds) { if (k.id === id) return k.label; for (const s of k.subs) if (s.id === id) return s.label; }
+  return id;
+}
+function summary() {
+  const likes = [...P.likes].map(labelOf).join("・") || "—", dis = [...P.dislikes].map(labelOf).join("・") || "—";
+  let confirmDelete = false;
+  const del = h("button", {class: "btn danger", onclick: async () => {
+    if (!confirmDelete) { confirmDelete = true; del.textContent = "もう一度押すと削除します"; return; }
+    await api("/api/liff/profile", {method: "DELETE"}); P.likes.clear(); P.dislikes.clear(); P.station = null; toast("削除しました"); round1();
+  }}, "プロフィールを削除");
+  render(h("h1", {}, "プロフィール ✅"),
+    h("div", {class: "card rows"}, h("span", {class: "k"}, "好き"), h("span", {}, likes), h("span", {class: "k"}, "なし"), h("span", {}, dis),
+      h("span", {class: "k"}, "出発駅"), h("span", {}, P.station ? P.station.name : "未設定")),
+    h("p", {class: "sub"}, "グループでAsobiAgentを呼ぶと、この内容が自動で使われます。今回だけ変えたいときは、グループで「今日は品川から」「和食がいい」のように送ってください。"),
+    del);
+  bar(h("button", {class: "btn sec", onclick: () => liff.closeWindow()}, "閉じる"), h("button", {class: "btn", onclick: round1}, "編集する"));
+}
+
+// ---------- calendar (organizer picks candidate dates) ----------
+async function calendar() {
+  const t = param("t");
+  let poll;
+  try { poll = await api("/api/liff/poll?t=" + encodeURIComponent(t)); } catch (e) { return render(h("p", {class: "center"}, e.message)); }
+  if (poll.status === "open") return pollView(poll);
+  if (!poll.is_organizer) return render(h("p", {class: "center"}, `候補日は幹事（${poll.organizer_name}さん）がえらびます。`));
+  const chosen = new Set(), today = new Date(); today.setHours(0, 0, 0, 0);
+  let slot = "lunch";
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const months = [0, 1, 2].map(i => new Date(today.getFullYear(), today.getMonth() + i, 1));
+  const timeIn = h("input", {type: "time", value: "19:00", hidden: true});
+  const go = h("button", {class: "btn", disabled: true}, "候補日をえらんでください");
+  const draw = () => {
+    render(h("h1", {}, "候補日をえらぶ"), h("p", {class: "sub"}, "タップで選択。何日でもえらべます。"),
+      ...months.map(m => {
+        const days = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate(), lead = m.getDay();
+        return h("div", {class: "month"}, h("h2", {}, `${m.getFullYear()}年${m.getMonth() + 1}月`),
+          h("div", {class: "cal"}, ..."日月火水木金土".split("").map((d, i) => h("span", {class: "dow" + (i === 0 ? " sun" : "")}, d)),
+            ...Array.from({length: lead}, () => h("span")),
+            ...Array.from({length: days}, (_, i) => { const d = new Date(m.getFullYear(), m.getMonth(), i + 1), k = iso(d);
+              return h("button", {class: (chosen.has(k) ? "sel" : "") + (d.getDay() === 0 ? " sun" : ""), disabled: d < today,
+                onclick: () => { chosen.has(k) ? chosen.delete(k) : chosen.add(k); draw(); }}, i + 1); })));
+      }),
+      h("p", {class: "sub"}, "時間帯"),
+      h("div", {class: "chips"}, [["lunch", "ランチ"], ["dinner", "夜"], ["time", "時間を指定"]].map(([v, l]) =>
+        h("button", {class: "chip" + ((slot === v) ? " sel" : ""), onclick: () => { slot = v; timeIn.hidden = v !== "time"; draw(); }}, l))),
+      timeIn);
+    go.disabled = !chosen.size;
+    go.textContent = chosen.size ? `この${chosen.size}日で日程調整を作る` : "候補日をえらんでください";
+  };
+  go.addEventListener("click", async () => {
+    go.disabled = true;
+    try {
+      const r = await api("/api/liff/poll/dates", {method: "POST", body: JSON.stringify({t, dates: [...chosen], slot: slot === "time" ? timeIn.value : slot})});
+      const posted = await say(`日程調整を作りました（${r.count}日）`);
+      render(h("h1", {}, "日程調整を作りました ✅"), h("p", {class: "sub"}, posted ? "グループに○△×の表が届きます。" :
+        "グループのトークに戻って「@AsobiAgent 日程」と送ると、○△×の表が届きます。"));
+      bar(h("button", {class: "btn", onclick: () => liff.closeWindow()}, "閉じる"));
+      if (posted) setTimeout(() => liff.closeWindow(), 1500);
+    } catch (e) { toast(e.message); go.disabled = false; }
+  });
+  bar(go);
+  draw();
+}
+
+// ---------- poll (everyone answers ○△×) ----------
+async function poll() {
+  const t = param("t");
+  try { pollView(await api("/api/liff/poll?t=" + encodeURIComponent(t))); } catch (e) { render(h("p", {class: "center"}, e.message)); }
+}
+function pollView(p) {
+  const t = param("t"), marks = {...p.mine};
+  const sym = {o: "○", t: "△", x: "×"};
+  const draw = () => {
+    const head = h("tr", {}, h("th", {}, "日付"), ...p.people.map(x => h("th", {}, x.me ? "あなた" : x.name)));
+    const body = p.dates.map(d => {
+      const cells = p.people.map(x => { const m = x.marks[d.iso]; return h("td", {class: m === "o" ? "o" : m === "t" ? "t" : "x2"}, m ? sym[m] : "–"); });
+      return h("tr", {class: p.best === d.iso ? "best" : ""}, h("td", {}, d.label), ...cells);
+    });
+    const mine = p.status === "open" ? h("div", {class: "card mine"}, h("strong", {}, "あなたの回答"), ...p.dates.map(d =>
+      h("div", {class: "mrow"}, h("span", {}, d.label), h("span", {class: "seg"}, ...["o", "t", "x"].map(k =>
+        h("button", {class: marks[d.iso] === k ? "on-" + k : "", onclick: () => { marks[d.iso] = k; draw(); }}, sym[k])))))) : null;
+    render(h("h1", {}, "日程調整"), h("p", {class: "sub"}, `時間帯：${p.slot_label}　${p.status === "open" ? "○ 行ける ・ △ たぶん ・ × むり" : "締め切りました"}`),
+      h("div", {class: "table"}, h("table", {}, h("thead", {}, head), h("tbody", {}, ...body))), mine);
+    if (p.status === "open") {
+      const answered = p.dates.every(d => marks[d.iso]);
+      const send = h("button", {class: "btn", disabled: !answered}, answered ? "回答する" : "全部の日に○△×をつけてください");
+      send.addEventListener("click", async () => {
+        send.disabled = true;
+        try { const r = await api("/api/liff/poll/answer", {method: "POST", body: JSON.stringify({t, marks})});
+              if (r.first) await say("日程に回答しました ✅");
+              p = r.poll; toast("回答しました"); draw(); }
+        catch (e) { toast(e.message); send.disabled = false; }
+      });
+      bar(h("button", {class: "btn sec", onclick: () => liff.closeWindow()}, "閉じる"), send);
+    } else bar(h("button", {class: "btn", onclick: () => liff.closeWindow()}, "閉じる"));
+  };
+  draw();
+}
+
+// ---------- boot ----------
+(async () => {
+  try {
+    await liff.init({liffId: LIFF_ID});
+    if (!liff.isLoggedIn()) { liff.login({redirectUri: location.href}); return; }
+    idToken = liff.getIDToken();
+    const path = location.pathname.replace(/\/+$/, "");
+    if (path.endsWith("/calendar")) await calendar();
+    else if (path.endsWith("/poll")) await poll();
+    else await profile();
+  } catch (e) {
+    console.error(e);
+    render(h("p", {class: "center"}, "読み込めませんでした。LINEアプリから開き直してください。"), h("p", {class: "err"}, String(e.message || e)));
+  }
+})();
+</script>
+</body>
+</html>

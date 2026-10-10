@@ -28,14 +28,19 @@ async def handle(deps: Deps, ev: dict[str, Any]) -> None:
 
     if ev["type"] == "follow":
         user = await deps.store.get("users", uhash)
-        greeting = texts.GREETING_ADMIN if is_admin else \
-            texts.GREETING_VERIFIED if user and user.get("verified") else texts.GREETING
-        await deps.reply(ev, [line_flex.plain(greeting)])
+        verified = is_admin or bool(user and user.get("verified"))
+        greeting = texts.GREETING_ADMIN if is_admin else texts.GREETING_VERIFIED if verified else texts.GREETING
+        await deps.reply(ev, [line_flex.plain(greeting)] + _profile_offer(deps, verified))
         return
 
     if ev["type"] != "message" or ev.get("message", {}).get("type") != "text":
         return
     text = ev["message"]["text"].strip()
+    if text in ("プロフィール", "/profile", "好み"):
+        user = await deps.store.get("users", uhash)
+        offer = _profile_offer(deps, is_admin or bool(user and user.get("verified")))
+        await deps.reply(ev, offer or [line_flex.plain(texts.ASK_FOR_CODE)])
+        return
     if is_admin and text.startswith("/"):
         await _admin_command(deps, ev, text)
         return
@@ -83,7 +88,13 @@ async def _redeem(deps: Deps, ev: dict[str, Any], uhash: str, code: str) -> None
         "ok": texts.verified(left), "already": texts.ALREADY_VERIFIED, "unknown": texts.CODE_UNKNOWN,
         "used": texts.CODE_USED, "expired": texts.CODE_EXPIRED,
     }[outcome]
-    await deps.reply(ev, [line_flex.plain(message)])
+    await deps.reply(ev, [line_flex.plain(message)] + (_profile_offer(deps, True) if outcome == "ok" else []))
+
+
+def _profile_offer(deps: Deps, verified: bool) -> list[dict[str, Any]]:
+    if not verified or not deps.settings.liff_id:
+        return []
+    return [line_flex.profile_offer(f"https://liff.line.me/{deps.settings.liff_id}/profile")]
 
 
 async def create_invites(deps: Deps, count: int) -> list[str]:

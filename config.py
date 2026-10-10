@@ -31,6 +31,8 @@ class Settings:
     line_channel_access_token: str
     line_admin_user_id: str
     line_bot_basic_id: str
+    line_login_channel_id: str   # LIFF pages (profile, date poll) live on this channel
+    liff_id: str
 
     # Models and data sources
     gmi_api_key: str
@@ -88,6 +90,8 @@ def _load() -> Settings:
         line_channel_access_token=os.getenv("LINE_CHANNEL_ACCESS_TOKEN", ""),
         line_admin_user_id=os.getenv("LINE_ADMIN_USER_ID", ""),
         line_bot_basic_id=os.getenv("LINE_BOT_BASIC_ID", ""),
+        line_login_channel_id=os.getenv("LINE_LOGIN_CHANNEL_ID", ""),
+        liff_id=os.getenv("LIFF_ID", ""),
         gmi_api_key=os.getenv("GMI_API_KEY", ""),
         gmi_base_url=(os.getenv("GMI_BASE_URL") or "https://api.gmi-serving.com/v1"),
         gmi_model=(os.getenv("GMI_MODEL") or "google/gemini-3.5-flash-lite"),

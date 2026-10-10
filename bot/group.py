@@ -24,18 +24,27 @@ from urllib.parse import parse_qs
 
 from agents import schedule_agent, spot_agent, voice_agent
 from agents.ekispert_agent import find_hub
+from agents.group_picks import group_picks
+from bot import poll as polls
 from bot import texts
 from bot.deps import Deps
 from bot.text_parse import JOIN_WORDS, PASS_WORDS, date_hint, hint_text, is_trigger_text, merge_hints
 from services import line_flex
 from services.ids import new_nonce
 from services.store import KEEP
+from services.suggest import URL as URL_RE
+from services.suggest import SuggestionError
+from services.suggest import resolve as resolve_suggestion
+from services.taste import group_taste
 from services.usage import JST
 
 log = logging.getLogger("group")
 
-PAGE = 3
-LABELS = "ABCDEFGHI"
+PAGE = 6
+LABELS = "ABCDEFGHIJKL"
+MAX_SUGGESTIONS = 3
+POLL_CREATED = "日程調整を作りました"
+POLL_ANSWERED = "日程に回答しました"
 STALE_SEARCH_SECONDS = 120
 DAY = 86400
 
@@ -78,6 +87,22 @@ def _when(plan: dict[str, Any]) -> Optional[str]:
     details = plan.get("details") or {}
     parts = [p for p in (details.get("day"), details.get("time")) if p]
     return " ".join(parts) if parts else hint_text(plan.get("hint"))
+
+
+def _all_votes(plan: dict[str, Any]) -> Counter:
+    return Counter(v for p in plan["participants"].values() for v in p.get("votes", []))
+
+
+def _labels(plan: dict[str, Any]) -> dict[str, str]:
+    """Card label per candidate: A, B, … for the bot's picks, 提案1… for suggestions."""
+    out = {p["id"]: LABELS[i] for i, p in enumerate(plan.get("picks", [])[:len(LABELS)])}
+    for i, sg in enumerate(plan.get("suggestions", [])):
+        out[sg["id"]] = f"提案{i + 1}"
+    return out
+
+
+def _is_suggestion(request: str) -> bool:
+    return request.startswith("提案") or bool(URL_RE.search(request))
 
 
 def _strip_self_mentions(message: dict[str, Any]) -> str:
@@ -219,13 +244,21 @@ class GroupBot:
             return
         if not c.uhash:
             return
+        stripped = text.strip()
+        if stripped.startswith(POLL_CREATED):
+            await self.announce_poll(c)
+            return
+        if stripped.startswith(POLL_ANSWERED):
+            return
+        if trigger and request.startswith("日程"):
+            await self.start_poll(c, plan)
+            return
         if plan is None:
             if trigger:
                 await self.start_plan(c, group, request)
             return
 
         phase = plan["phase"]
-        stripped = text.strip()
         if phase in ("gathering", "ready"):
             if c.uhash in plan["participants"]:
                 if stripped in PASS_WORDS:
@@ -241,7 +274,9 @@ class GroupBot:
             if trigger:
                 await self.d.reply(c.ev, [line_flex.plain(texts.SEARCHING)])
         elif phase == "voting":
-            if trigger and request:
+            if trigger and request and _is_suggestion(request):
+                await self.suggest(c, plan, request.removeprefix("提案").strip())
+            elif trigger and request:
                 await self.refine(c, plan["nonce"], request=request)
             elif trigger:
                 await self.d.reply(c.ev, [line_flex.plain(texts.VOTING_HINT)])
@@ -270,13 +305,15 @@ class GroupBot:
                 plan["phase"] = "ready"
                 for p in plan["participants"].values():
                     p["ready"] = False
-                outcome = "ready_card"
+                outcome = "go" if plan.get("auto_search") else "ready_card"
             elif plan["phase"] == "ready" and hint_text(plan["hint"]) != before:
                 outcome = "when"
             return [self._touch(group, c.now), plan], (outcome, plan)
 
         outcome, plan = await self._txn(c.ghash, fn)
-        if outcome == "ready_card":
+        if outcome == "go":
+            await self.search(c, plan["nonce"])
+        elif outcome == "ready_card":
             await self.d.reply(c.ev, [line_flex.ready_check(plan["nonce"], _station_rows(plan), hint_text(plan.get("hint")))])
         elif outcome == "when":
             await self.d.reply(c.ev, [line_flex.plain(texts.when_noted(hint_text(plan["hint"])))])
@@ -323,6 +360,18 @@ class GroupBot:
             await self.more(c, nonce)
         elif action == "refine":
             await self.refine(c, nonce, kind=data.get("r"))
+        elif action == "results":
+            await self.results(c, nonce)
+        elif action == "suggest":
+            await self.d.reply(c.ev, [line_flex.plain(texts.SUGGEST_HOW)])
+        elif action == "poll":
+            await self.start_poll(c, plan)
+        elif action == "pollres":
+            await self.poll_results(c, nonce, close=False)
+        elif action == "pollclose":
+            await self.poll_results(c, nonce, close=True)
+        elif action == "pollplan":
+            await self.plan_from_poll(c, group, plan, nonce)
 
     async def activate(self, c: Ctx) -> None:
         is_admin = bool(self.s.line_admin_user_id) and c.user_id == self.s.line_admin_user_id
@@ -370,6 +419,8 @@ class GroupBot:
             return
         name = await self._name(c)
         station = await self.d.stations.from_text(request) if request else None
+        if not station:
+            station = (await self.d.store.get("profiles", c.uhash) or {}).get("station")
         hint = date_hint(request) if request else {}
         now, s = c.now, self.s
 
@@ -379,7 +430,7 @@ class GroupBot:
                 return [KEEP, KEEP], None
             if plan:
                 return [KEEP, KEEP], "exists"
-            me = {"name": name, "n": 1, "ready": False, "vote": None}
+            me = {"name": name, "n": 1, "ready": False, "votes": []}
             if station:
                 me["station"] = {"name": station["name"], "code": station["code"]}
             plan = {
@@ -399,6 +450,7 @@ class GroupBot:
 
     async def join(self, c: Ctx, nonce: Optional[str]) -> None:
         name = await self._name(c)
+        station = (await self.d.store.get("profiles", c.uhash) or {}).get("station")
         now, limit = c.now, self.s.max_participants
 
         def fn(docs):
@@ -412,14 +464,28 @@ class GroupBot:
             if len(plan["participants"]) >= limit:
                 return [KEEP, KEEP], "full"
             plan = copy.deepcopy(plan)
-            plan["participants"][c.uhash] = {"name": name, "n": plan["next_n"], "ready": False, "vote": None}
+            me = {"name": name, "n": plan["next_n"], "ready": False, "votes": []}
+            if station:
+                me["station"] = {"name": station["name"], "code": station["code"]}   # from their profile
+            plan["participants"][c.uhash] = me
             plan["next_n"] += 1
             plan["passed"] = [u for u in plan.get("passed", []) if u != c.uhash]
-            plan["phase"] = "gathering"   # the newcomer has no station yet
-            return [self._touch(group, now), plan], "joined"
+            if _all_have_stations(plan):
+                plan["phase"] = "ready"
+                for p in plan["participants"].values():
+                    p["ready"] = False
+                return [self._touch(group, now), plan], ("go" if plan.get("auto_search") else "ready_card", plan)
+            plan["phase"] = "gathering"
+            return [self._touch(group, now), plan], ("joined", plan)
 
         outcome = await self._txn(c.ghash, fn)
-        if outcome == "stale":
+        outcome, joined_plan = outcome if isinstance(outcome, tuple) else (outcome, None)
+        if outcome == "ready_card":
+            await self.d.reply(c.ev, [line_flex.ready_check(joined_plan["nonce"], _station_rows(joined_plan),
+                                                            hint_text(joined_plan.get("hint")))])
+        elif outcome == "go":
+            await self.search(c, joined_plan["nonce"])
+        elif outcome == "stale":
             await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
         elif outcome == "full":
             await self.d.reply(c.ev, [line_flex.plain(texts.full(limit))])
@@ -542,8 +608,7 @@ class GroupBot:
             if not station or station.get("lat") is None:
                 raise SearchProblem(texts.NO_HUB)
             pax = len(snap["participants"])
-            picks = await spot_agent.shortlist(self.d.llm, self.d.hotpepper, station, details, pax,
-                                               featured=self.d.featured, timeout=self.d.timeout)
+            picks, taste = await self._choose_picks(snap, station, details, pax, set())
             if not picks:
                 raise SearchProblem(texts.NO_VENUES)
         except SearchProblem as e:
@@ -563,19 +628,35 @@ class GroupBot:
             if not plan or plan["nonce"] != nonce or plan["phase"] != "searching":
                 return [KEEP, KEEP], (None, None)
             plan = copy.deepcopy(plan)
-            plan.update(phase="voting", details=details, picks=picks, page=0, held=[],
-                        hub={"name": hub["name"], "code": hub["code"], "spread": hub["spread"]})
+            plan.update(phase="voting", details=details, picks=picks, page=0, held=[], suggestions=[],
+                        hub={"name": hub["name"], "code": hub["code"], "spread": hub["spread"],
+                             "lat": station.get("lat"), "lng": station.get("lng")})
             for p in plan["participants"].values():
                 p.pop("station", None)   # no longer needed once the hub is known
                 p["ready"] = False
-                p["vote"] = None
+                p["votes"] = []
             return [self._touch(group, c.now), plan], (group, plan)
 
         group, plan = await self._txn(c.ghash, finish)
         if plan is None:
             return
         carousel = await self._carousel(plan, self._searches_left(group))
-        await self.d.reply(c.ev, [line_flex.hub_card(hub, hub_rows, schedule_agent.details_text(details)), carousel])
+        summary = " / ".join(x for x in (schedule_agent.details_text(details), _taste_text(taste)) if x)
+        await self.d.reply(c.ev, [line_flex.hub_card(hub, hub_rows, summary), carousel])
+
+    async def _choose_picks(self, plan: dict[str, Any], station: dict[str, Any], details: dict[str, Any],
+                            pax: int, exclude: set[str]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """With profiles: places covering everyone's tastes. Without: the classic search."""
+        people = [{"name": p["name"], "profile": await self.d.store.get("profiles", u)}
+                  for u, p in plan["participants"].items()]
+        taste = group_taste(people)
+        if taste["has_profiles"]:
+            picks = await group_picks(self.d.hotpepper, station, details, pax, taste, exclude=exclude,
+                                      featured=self.d.featured, timeout=self.d.timeout)
+        else:
+            picks = await spot_agent.shortlist(self.d.llm, self.d.hotpepper, station, details, pax, exclude=exclude,
+                                               featured=self.d.featured, timeout=self.d.timeout)
+        return picks, taste
 
     # ---- phase 5: vote, more, refine ------------------------------------------------------------
 
@@ -588,7 +669,23 @@ class GroupBot:
         pages = math.ceil(len(plan["picks"]) / PAGE)
         shown = [shops[p["id"]] for p in chunk]
         return line_flex.venues_carousel(plan["nonce"], shown, chunk, labels, pages - page - 1, searches_left,
-                                         [self.d.featured(s) for s in shown])
+                                         [self.d.featured(s) for s in shown], leader=await self._leader(plan),
+                                         can_suggest=len(plan.get("suggestions", [])) < MAX_SUGGESTIONS)
+
+    async def _shop_map(self, plan: dict[str, Any], ids: list[str]) -> dict[str, dict[str, Any]]:
+        """Shop details for picks (HotPepper / Time Out) and suggestions (stored in the plan)."""
+        own = {sg["id"]: sg["shop"] for sg in plan.get("suggestions", []) if sg.get("shop")}
+        found = await self.d.shops([i for i in ids if i not in own])
+        found.update({i: own[i] for i in ids if i in own})
+        return found
+
+    async def _leader(self, plan: dict[str, Any]) -> Optional[str]:
+        counts = _all_votes(plan)
+        if not counts:
+            return None
+        top, n = counts.most_common(1)[0]
+        shop = (await self._shop_map(plan, [top])).get(top)
+        return f"{_labels(plan).get(top, '')} {shop['name'][:14] if shop else ''}（{n}票）".strip()
 
     async def more(self, c: Ctx, nonce: Optional[str]) -> None:
         def fn(docs):
@@ -632,9 +729,7 @@ class GroupBot:
             elif request:
                 details = await schedule_agent.refine_details(self.d.llm, details, request)
             station = await self.d.stations.by_code(snap["hub"]["code"])
-            picks = await spot_agent.shortlist(self.d.llm, self.d.hotpepper, station, details,
-                                               len(snap["participants"]), exclude=set(shown),
-                                               featured=self.d.featured, timeout=self.d.timeout)
+            picks, _ = await self._choose_picks(snap, station, details, len(snap["participants"]), set(shown))
             if not picks:
                 raise SearchProblem(texts.NO_VENUES)
         except SearchProblem as e:
@@ -654,7 +749,7 @@ class GroupBot:
             plan = copy.deepcopy(plan)
             plan.update(phase="voting", details=details, picks=picks, page=0)
             for p in plan["participants"].values():
-                p["vote"] = None
+                p["votes"] = []
             return [self._touch(group, c.now), plan], (group, plan)
 
         group, plan = await self._txn(c.ghash, finish)
@@ -665,23 +760,46 @@ class GroupBot:
                                   await self._carousel(plan, self._searches_left(group))])
 
     def _winner(self, plan: dict[str, Any], forced: bool) -> Optional[str]:
+        """Approval voting: everyone can approve several places.
+        Decided when one place is approved by everyone, when everyone has voted (most approvals wins),
+        or when the organizer closes the vote. Ties go to the organizer's choice, then the earlier card."""
         people = plan["participants"]
-        votes = [p["vote"] for p in people.values() if p.get("vote")]
-        counts = Counter(votes)
-        for shop_id, n in counts.items():
-            if n * 2 > len(people):
-                return shop_id
-        if not (forced or (people and len(votes) == len(people))):
+        counts = _all_votes(plan)
+        order = [p["id"] for p in plan["picks"]] + [sg["id"] for sg in plan.get("suggestions", [])]
+        everyone = [shop for shop, n in counts.items() if n == len(people)]
+        if everyone:
+            return min(everyone, key=lambda s: order.index(s) if s in order else 99)
+        all_voted = bool(people) and all(p.get("votes") for p in people.values())
+        if not (forced or all_voted):
             return None
-        order = [p["id"] for p in plan["picks"]]
         if not counts:
             return order[plan["page"] * PAGE] if forced and order else None
         best = max(counts.values())
         tied = [s for s, n in counts.items() if n == best]
-        organizer_vote = people.get(plan["organizer"], {}).get("vote")
-        if organizer_vote in tied:
-            return organizer_vote
-        return min(tied, key=lambda s: order.index(s) if s in order else 99)
+        organizer_votes = people.get(plan["organizer"], {}).get("votes", [])
+        mine = [s for s in tied if s in organizer_votes]
+        pool = mine or tied
+        return min(pool, key=lambda s: order.index(s) if s in order else 99)
+
+    def _result_rows(self, plan: dict[str, Any], shops: dict[str, dict[str, Any]]) -> list[tuple[str, int]]:
+        labels = _labels(plan)
+        counts = _all_votes(plan)
+        return [(f"{labels.get(s, '')} {shops[s]['name'] if s in shops else ''}".strip(), n)
+                for s, n in counts.most_common()]
+
+    async def results(self, c: Ctx, nonce: Optional[str]) -> None:
+        plan = await self.d.store.get("plans", c.ghash)
+        if not plan or plan["nonce"] != nonce or plan["phase"] != "voting":
+            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            return
+        counts = _all_votes(plan)
+        shops = await self._shop_map(plan, list(counts))
+        people = plan["participants"]
+        missing = [p["name"] for p in people.values() if not p.get("votes")]
+        leader = await self._leader(plan)
+        await self.d.reply(c.ev, [line_flex.results_card(
+            self._result_rows(plan, shops), len(people) - len(missing), len(people), missing,
+            f"いまの1位：{leader}" if leader else "まだ投票がありません", nonce)])
 
     async def vote(self, c: Ctx, nonce: Optional[str], shop_id: Optional[str], forced: bool) -> None:
         plan_now = await self.d.store.get("plans", c.ghash)
@@ -691,35 +809,43 @@ class GroupBot:
         if forced and c.uhash != plan_now["organizer"]:
             await self.d.reply(c.ev, [line_flex.plain(texts.organizer_only(plan_now["organizer_name"]))])
             return
-        shown = [p["id"] for p in plan_now["picks"][:(plan_now["page"] + 1) * PAGE]]
-        shops = await self.d.shops(shown)
-        now, s = c.now, self.s
+        shown = [p["id"] for p in plan_now["picks"][:(plan_now["page"] + 1) * PAGE]] + \
+            [sg["id"] for sg in plan_now.get("suggestions", [])]
+        shops = await self._shop_map(plan_now, shown)
+        now = c.now
 
         def fn(docs):
             group, plan = docs
             if not plan or plan["nonce"] != nonce or plan["phase"] != "voting":
-                return [KEEP, KEEP], ("stale", None)
+                return [KEEP, KEEP], ("stale", None, None)
             plan = copy.deepcopy(plan)
             if not forced:
                 if c.uhash not in plan["participants"]:
-                    return [KEEP, KEEP], ("not_participant", None)
+                    return [KEEP, KEEP], ("not_participant", None, None)
                 if shop_id not in shown:
-                    return [KEEP, KEEP], ("stale", None)
-                plan["participants"][c.uhash]["vote"] = shop_id
+                    return [KEEP, KEEP], ("stale", None, None)
+                mine = plan["participants"][c.uhash].setdefault("votes", [])
+                if shop_id in mine:
+                    mine.remove(shop_id)      # tapping again takes the vote back
+                else:
+                    mine.append(shop_id)
             winner = self._winner(plan, forced)
             if not winner:
-                return [KEEP, plan], ("noted", None)
-            pick = next(p for p in plan["picks"] if p["id"] == winner)
+                return [KEEP, plan], ("noted", None, None)
+            pick = next((p for p in plan["picks"] if p["id"] == winner), None) or \
+                next(sg for sg in plan.get("suggestions", []) if sg["id"] == winner)
             decision = {"shop_id": winner, "pick": pick, "when": _when(plan),
                         "day": (plan.get("details") or {}).get("day") or (plan.get("hint") or {}).get("day"),
                         "time": (plan.get("details") or {}).get("time") or (plan.get("hint") or {}).get("time"),
                         "pax": len(plan["participants"]), "organizer_name": plan["organizer_name"],
-                        "hub_name": plan["hub"]["name"]}
+                        "hub_name": plan["hub"]["name"], "rows": self._result_rows(plan, shops),
+                        "voters": sum(1 for p in plan["participants"].values() if p.get("votes")),
+                        "label": _labels(plan).get(winner, ""), "shop": pick.get("shop")}
             group = dict(self._touch(group, now), state="done",
                          plans_used=group.get("plans_used", 0) + 1, decided_at=now)
-            return [group, None], ("decided", decision)   # the plan (names, votes) is deleted here
+            return [group, None], ("decided", decision, plan)   # the plan (names, votes) is deleted here
 
-        outcome, decision = await self._txn(c.ghash, fn)
+        outcome, decision, _ = await self._txn(c.ghash, fn)
         if outcome == "stale":
             await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
         elif outcome == "not_participant":
@@ -727,16 +853,185 @@ class GroupBot:
         elif outcome == "decided":
             await self._announce(c, decision, shops)
 
+    # ---- suggestions ---------------------------------------------------------------------------
+
+    async def suggest(self, c: Ctx, plan: dict[str, Any], request: str) -> None:
+        if c.uhash not in plan["participants"]:
+            await self.d.reply(c.ev, [line_flex.plain(texts.NOT_PARTICIPANT)])
+            return
+        if len(plan.get("suggestions", [])) >= MAX_SUGGESTIONS:
+            await self.d.reply(c.ev, [line_flex.plain(texts.SUGGEST_FULL)])
+            return
+        try:
+            shop = await resolve_suggestion(self.d, request, plan["hub"])
+        except SuggestionError as e:
+            await self.d.reply(c.ev, [line_flex.plain(e.message)])
+            return
+        except Exception:
+            log.exception("suggestion failed")
+            await self.d.reply(c.ev, [line_flex.plain(texts.SUGGEST_FAILED)])
+            return
+        name = plan["participants"][c.uhash]["name"]
+        walk = spot_agent.walk_minutes(shop, plan["hub"]) if plan["hub"].get("lat") else None
+        nonce = plan["nonce"]
+
+        def fn(docs):
+            group, current = docs
+            if not current or current["nonce"] != nonce or current["phase"] != "voting":
+                return [KEEP, KEEP], ("stale", None)
+            current = copy.deepcopy(current)
+            suggestions = current.setdefault("suggestions", [])
+            if any(sg["id"] == shop["id"] for sg in suggestions) or any(p["id"] == shop["id"] for p in current["picks"]):
+                return [KEEP, KEEP], ("dup", None)
+            if len(suggestions) >= MAX_SUGGESTIONS:
+                return [KEEP, KEEP], ("full", None)
+            entry = {"id": shop["id"], "suggested_by": name, "walk_min": walk, "reason": f"{name}さんの提案"}
+            if not shop["id"].startswith(("J", "TO")):
+                entry["shop"] = shop          # Places results can't be looked up again, so keep them
+            suggestions.append(entry)
+            return [KEEP, current], ("ok", (current, entry))
+
+        outcome, result = await self._txn(c.ghash, fn)
+        if outcome == "ok":
+            current, entry = result
+            await self.d.reply(c.ev, [line_flex.suggestion_card(nonce, _labels(current)[entry["id"]], shop, entry)])
+        elif outcome == "dup":
+            await self.d.reply(c.ev, [line_flex.plain(texts.SUGGEST_DUP)])
+        elif outcome == "full":
+            await self.d.reply(c.ev, [line_flex.plain(texts.SUGGEST_FULL)])
+        else:
+            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+
+    # ---- date poll -----------------------------------------------------------------------------
+
+    def _poll_token(self, ghash: str, nonce: str) -> str:
+        return self.d.ids.sign({"k": "poll", "g": ghash, "n": nonce}, polls.POLL_DAYS * DAY)
+
+    def _liff_url(self, path: str, token: str) -> str:
+        return f"https://liff.line.me/{self.s.liff_id}/{path}?t={token}"
+
+    async def start_poll(self, c: Ctx, plan: Optional[dict[str, Any]]) -> None:
+        if plan is not None:
+            await self.d.reply(c.ev, [line_flex.plain(texts.POLL_PLAN_RUNNING)])
+            return
+        if not self.s.liff_id:
+            await self.d.reply(c.ev, [line_flex.plain(texts.POLL_UNAVAILABLE)])
+            return
+        name = await self._name(c)
+        poll = await polls.start(self.d.store, c.ghash, c.uhash, name, c.now)
+        token = self._poll_token(c.ghash, poll["nonce"])
+        if poll["status"] == "open":
+            await self.d.reply(c.ev, [self._poll_card(poll, token)])
+        else:
+            await self.d.reply(c.ev, [line_flex.poll_start(self._liff_url("calendar", token), poll["organizer_name"])])
+
+    def _poll_card(self, poll: dict[str, Any], token: str) -> dict:
+        return line_flex.poll_card(poll["nonce"], [polls.date_label(d) for d in poll["dates"]],
+                                   polls.slot_label(poll.get("slot")), self._liff_url("poll", token),
+                                   len(poll.get("answers", {})))
+
+    async def announce_poll(self, c: Ctx) -> None:
+        """The calendar page posted 「日程調整を作りました」 as the organizer: reply with the poll card."""
+        def fn(docs):
+            poll = docs[0]
+            if not poll or poll.get("status") != "open" or poll.get("announced"):
+                return [KEEP], None
+            return [dict(poll, announced=True)], poll
+
+        poll = await self.d.store.transact([("polls", c.ghash)], fn)
+        if poll:
+            await self.d.reply(c.ev, [self._poll_card(poll, self._poll_token(c.ghash, poll["nonce"]))])
+
+    async def poll_results(self, c: Ctx, nonce: Optional[str], close: bool) -> None:
+        poll = await self.d.store.get("polls", c.ghash)
+        if not poll or poll.get("nonce") != nonce or poll.get("status") not in ("open", "closed"):
+            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            return
+        if close and c.uhash != poll["organizer"]:
+            await self.d.reply(c.ev, [line_flex.plain(texts.organizer_only(poll["organizer_name"]))])
+            return
+        ranked = polls.tally(poll)
+        best = ranked[0][0] if ranked and (ranked[0][1] + ranked[0][2]) > 0 else None
+        if close:
+            if not best:
+                await self.d.reply(c.ev, [line_flex.plain(texts.POLL_NO_ANSWERS)])
+                return
+            await self.d.store.set("polls", c.ghash, dict(poll, status="closed", best=best))
+        yes, maybe = polls.people_for(poll, best) if best else ([], [])
+        runner = next((polls.date_label(d) for d, o, t, x in ranked[1:2] if o + t > 0), None)
+        await self.d.reply(c.ev, [line_flex.poll_result(
+            nonce, polls.date_label(best) if best else None, [n for _, n in yes], [n for _, n in maybe], runner,
+            [(polls.date_label(d), o, t, x) for d, o, t, x in ranked], closed=close)])
+
+    async def plan_from_poll(self, c: Ctx, group: dict[str, Any], plan: Optional[dict[str, Any]],
+                             nonce: Optional[str]) -> None:
+        poll = await self.d.store.get("polls", c.ghash)
+        if not poll or poll.get("nonce") != nonce or poll.get("status") != "closed" or not poll.get("best"):
+            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            return
+        if plan is not None:
+            await self.d.reply(c.ev, [line_flex.plain(texts.POLL_PLAN_RUNNING)])
+            return
+        if self._used_up(group):
+            await self.d.reply(c.ev, [line_flex.plain(texts.SEARCHES_USED_UP)])
+            return
+        yes, maybe = polls.people_for(poll, poll["best"])
+        people = (yes + maybe)[:self.s.max_participants]
+        day = dt.date.fromisoformat(poll["best"])
+        hint = {"day": f"{day.month}/{day.day}"}
+        slot = poll.get("slot")
+        if slot in ("lunch", "dinner"):
+            hint["meal"] = slot
+        elif slot:
+            hint["time"] = slot
+        participants = {}
+        for n, (u, name) in enumerate(people, start=1):
+            me = {"name": name, "n": n, "ready": False, "votes": []}
+            st = (await self.d.store.get("profiles", u) or {}).get("station")
+            if st:
+                me["station"] = {"name": st["name"], "code": st["code"]}
+            participants[u] = me
+        organizer = c.uhash if c.uhash in participants else (people[0][0] if people else c.uhash)
+        now, s = c.now, self.s
+
+        def fn(docs):
+            grp, existing = docs
+            if existing or not grp or grp.get("state") != "active":
+                return [KEEP, KEEP], None
+            new_plan = {
+                "nonce": new_nonce(), "phase": "gathering", "organizer": organizer,
+                "organizer_name": participants.get(organizer, {}).get("name", "幹事"), "started_at": now,
+                "participants": participants, "next_n": len(participants) + 1, "passed": [], "held": [],
+                "hint": hint, "auto_search": True,
+                "expire_at": min(grp.get("active_until", now + s.group_active_days * DAY), now + s.group_active_days * DAY),
+            }
+            return [self._touch(grp, now), new_plan], new_plan
+
+        new_plan = await self._txn(c.ghash, fn)
+        if not new_plan:
+            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            return
+        await self.d.store.delete("polls", c.ghash)     # the answers have done their job
+        if _all_have_stations(new_plan):
+            await self.search(c, new_plan["nonce"])
+            return
+        missing = [p["name"] for p in _people(new_plan) if not p.get("station")]
+        await self.d.reply(c.ev, [line_flex.gathering(new_plan["nonce"], s.max_participants),
+                                  line_flex.plain(texts.need_stations(missing))])
+
     # ---- phase 6: decided -----------------------------------------------------------------------
 
     async def _announce(self, c: Ctx, decision: dict[str, Any], shops: dict[str, dict[str, Any]]) -> None:
-        shop = shops.get(decision["shop_id"])
+        shop = shops.get(decision["shop_id"]) or decision.get("shop")
         if shop is None:
             shop = (await self.d.shops([decision["shop_id"]])).get(decision["shop_id"])
         messages: list[dict] = []
+        if decision.get("rows"):
+            messages.append(line_flex.results_card(decision["rows"], decision["voters"], decision["pax"], [],
+                                                   f"{decision['label']} {shop['name'] if shop else ''} に決まりました".strip()))
         if shop:
             known = shop.get("telephone") or (self.d.featured(shop) or {}).get("telephone")
-            phone = known if shop.get("source") == "timeout" else (
+            phone = known if shop.get("source") in ("timeout", "places") else (
                 await self.d.places.phone_number(shop["name"], shop.get("address") or "", shop.get("lat"), shop.get("lng"))
                 or known)
             agent_url = await self._agent_link(decision, shop)
@@ -762,3 +1057,12 @@ class GroupBot:
         })
         token = self.d.ids.sign({"r": run_id}, DAY)
         return f"{self.d.base_url()}/agent/{token}"
+
+
+def _taste_text(taste: dict[str, Any]) -> str:
+    if not taste.get("has_profiles"):
+        return ""
+    liked = "・".join(f"{k['label']}♡{len(k['likers'])}" for k in taste["kinds"][:3])
+    from services.taste import label as taste_label
+    dropped = "・".join(taste_label(d) for d in taste.get("dropped", [])[:3])
+    return "みんなの好み " + liked + (f"（のぞく：{dropped}）" if dropped else "")

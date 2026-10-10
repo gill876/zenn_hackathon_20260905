@@ -33,6 +33,7 @@ class Deps:
     places: PlacesClient
     form_agent: Optional[Any] = None
     timeout: Optional[TimeOutIndex] = None
+    liff: Optional[Any] = None           # verifies LIFF ID tokens (services/liff_auth.py)
     clock: Callable[[], float] = field(default=time.time)
 
     async def reply(self, ev: dict[str, Any], messages: list[dict[str, Any]]) -> None:

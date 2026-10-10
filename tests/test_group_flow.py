@@ -74,13 +74,14 @@ async def test_full_flow_from_invite_to_decision(deps):
     assert await send(deps, group_postback(f"a=vote&p={nonce}&v={first}", SUZUKI)) == []
     assert await send(deps, group_postback(f"a=vote&p={nonce}&v={third}", TAKAHASHI)) == []
     decided = await send(deps, group_postback(f"a=vote&p={nonce}&v={first}", TANAKA))
-    # 2 of 4 is not a majority; the third vote for the same shop is
+    # Approval voting: nothing is decided until everyone has voted (or one place has everyone's vote)
     assert decided == []
     decided = await send(deps, group_postback(f"a=vote&p={nonce}&v={first}", SATO))
-    assert "に決まりました" in decided[0]["altText"]
-    assert "電話" in decided[1]["altText"]
-    assert "tel:0312345678" in str(decided[1])
-    assert decided[2]["text"] == texts.GOODBYE
+    assert "投票" in decided[0]["altText"]                     # final results
+    assert "に決まりました。まだ予約は完了していません" in decided[1]["altText"]
+    assert "電話" in decided[2]["altText"]
+    assert "tel:0312345678" in str(decided[2])
+    assert decided[3]["text"] == texts.GOODBYE
     assert deps.line.left == [("group", "C1")]
     assert await deps.store.get("plans", ghash) is None         # names and votes deleted
     group = await deps.store.get("groups", ghash)
@@ -180,7 +181,7 @@ async def test_refining_counts_toward_the_search_limit(deps):
     assert "条件を変えて探しました" in first[0]["text"]
     second = await send(deps, group_postback(f"a=refine&p={nonce}&r=cheaper", SUZUKI))
     assert "条件を変えて探しました" in second[0]["text"]
-    assert deps.hotpepper.searches[-1].get("budget")
+    assert any(call.get("budget") for call in deps.hotpepper.searches)
     third = await send(deps, group_postback(f"a=refine&p={nonce}&r=near", SUZUKI))
     assert third[0]["text"] == texts.SEARCHES_USED_UP
     group = await deps.store.get("groups", deps.ids.chat("C1"))
@@ -200,7 +201,7 @@ async def test_more_shows_the_next_three(deps):
     plan = await deps.store.get("plans", deps.ids.chat("C1"))
     reply = await send(deps, group_postback(f"a=more&p={plan['nonce']}", SUZUKI))
     assert reply[0]["contents"]["type"] == "carousel"
-    assert "D  " in str(reply[0])
+    assert "G  " in str(reply[0])                             # the second page starts at G
 
 
 async def test_organizer_can_close_the_vote(deps):
@@ -281,11 +282,11 @@ async def test_time_out_pick_can_win_and_uses_time_out_phone(deps):
     plan = await deps.store.get("plans", deps.ids.chat("C1"))
     third = plan["picks"][2]
     assert third["id"].startswith("TO")                       # slot C is the Time Out pick
-    for user in (SATO, SUZUKI, TANAKA):
+    for user in (SATO, SUZUKI, TANAKA, TAKAHASHI):
         out = await send(deps, group_postback(f"a=vote&p={plan['nonce']}&v={third['id']}", user))
-    assert "路地裏 肉ビストロ" in out[0]["altText"]
-    assert "お店の情報（Time Out）" in str(out[0]) and "ホットペッパーで予約" not in str(out[0])
-    assert "tel:0399990000" in str(out[1])
+    assert "路地裏 肉ビストロ" in out[1]["altText"]
+    assert "お店の情報（Time Out）" in str(out[1]) and "ホットペッパーで予約" not in str(out[1])
+    assert "tel:0399990000" in str(out[2])
     assert deps.places.calls == 0                             # Time Out already had the number
 
 

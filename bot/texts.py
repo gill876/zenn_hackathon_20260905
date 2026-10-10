@@ -16,6 +16,7 @@ def verified(groups_left: int) -> str:
 
 ADMIN_HELP = (
     "管理者コマンド\n"
+    "プロフィール … 好きなお店・出発駅を登録\n"
     "/invite 3 … 招待コードを3つ作る（最大20）\n"
     "/stats … 今日の利用状況\n"
     "/limits … 現在の上限設定"
@@ -63,3 +64,16 @@ def when_noted(when: str) -> str:
 
 def refined(summary: str) -> str:
     return f"条件を変えて探しました（{summary}）。" if summary else "条件を変えて探しました。"
+
+SUGGEST_HOW = ("お店のリンクか名前を、@AsobiAgent をつけて送ってください。\n"
+               "例：@AsobiAgent 提案 https://www.hotpepper.jp/…\n例：@AsobiAgent 提案 利久 秋葉原")
+SUGGEST_FULL = "提案できるのは1回のプランで3軒までです。今の候補から選んでください。"
+SUGGEST_DUP = "そのお店はもう候補に入っています。"
+SUGGEST_FAILED = "お店を調べられませんでした。少し待ってから、もう一度送ってください。"
+POLL_PLAN_RUNNING = "いまプランを進めているところです。決まってから日程調整をしてください。"
+POLL_UNAVAILABLE = "日程調整は準備中です。"
+POLL_NO_ANSWERS = "まだ回答がありません。みんなに「回答する」から○△×をつけてもらってください。"
+
+
+def need_stations(missing: list[str]) -> str:
+    return "出発駅がわからない人がいます：" + "、".join(missing) + "\n「〇〇から」と送ってください。そろったらすぐにお店を探します。"
