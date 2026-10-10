@@ -31,6 +31,7 @@ async def handle_event(deps: Deps, ev: dict[str, Any]) -> None:
             return
     source = ev.get("source", {})
     kind = source.get("type")
+    log.info("event %s in %s", ev.get("type"), kind)   # types only, never content or IDs
     if kind == "user":
         await onboarding.handle(deps, ev)
     elif kind in ("group", "room"):
