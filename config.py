@@ -90,7 +90,7 @@ def _load() -> Settings:
         line_bot_basic_id=os.getenv("LINE_BOT_BASIC_ID", ""),
         gmi_api_key=os.getenv("GMI_API_KEY", ""),
         gmi_base_url=(os.getenv("GMI_BASE_URL") or "https://api.gmi-serving.com/v1"),
-        gmi_model=(os.getenv("GMI_MODEL") or "Qwen/Qwen3.8-Flash"),
+        gmi_model=(os.getenv("GMI_MODEL") or "google/gemini-3.5-flash-lite"),
         ekispert_api_key=os.getenv("EKISPERT_API_ACCESS_KEY", ""),
         ekispert_mcp_url=(os.getenv("EKISPERT_MCP_URL") or "https://api-mcp.ekispert.jp/mcp"),
         hotpepper_api_key=os.getenv("HOTPEPPER_API_KEY", ""),

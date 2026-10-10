@@ -213,7 +213,7 @@
     </div>
     <div class="nav-controls">
       <button class="btn-nav" id="prevBtn">◀ Previous</button>
-      <span class="slide-indicator" id="slideIndicator">1 / 6</span>
+      <span class="slide-indicator" id="slideIndicator">1 / 7</span>
       <button class="btn-nav" id="nextBtn">Next ▶</button>
       <a href="/presentation_ja.html" class="btn-lang">日本語スライド (Japanese Deck)</a>
       <a href="/" class="btn-demo" target="_blank">🚀 Launch Live Demo</a>
@@ -225,23 +225,23 @@
     <!-- SLIDE 1: Title -->
     <section class="slide active">
       <div class="slide-category">The 5th Agentic AI Hackathon with Google Cloud</div>
-      <h1 class="slide-title">AsobiAgent: <span>Autonomous Group Outing Concierge</span></h1>
+      <h1 class="slide-title">AsobiAgent: <span>Group Outings Without an Organizer</span></h1>
       <p style="font-size: 18px; color: #CBD5E1; max-width: 850px; margin-bottom: 24px;">
-        An autonomous multi-agent system operating natively inside <strong>LINE group chats</strong> to eliminate "organizer fatigue" — automatically resolving schedules, calculating fair midpoint stations with <strong>Ekispert</strong>, curating crowd-avoiding hidden gems, and autonomously booking tables over the phone.
+        A multi-agent LINE bot that takes a group chat from <strong>"where is everyone coming from?"</strong> to a <strong>fair meeting station</strong> (Ekispert), a <strong>vote on real venues</strong>, and everything needed to <strong>book</strong>.
       </p>
 
       <div class="grid-3" style="max-width: 900px;">
         <div class="card" style="border-color: #38BDF8;">
-          <h3>🚇 Ekispert MCP Tool</h3>
-          <p>Strictly compliant: non-timetable average routes to compute equal travel time hubs.</p>
+          <h3>🚇 Ekispert MCP</h3>
+          <p>No timetables: one range search gives everyone's average travel time.</p>
         </div>
         <div class="card" style="border-color: #06C755;">
           <h3>💬 LINE Flex UI</h3>
-          <p>Zero app downloads. Frictionless native experience inside existing group chats.</p>
+          <p>No app to install. Joining, confirming and voting are one tap each.</p>
         </div>
         <div class="card">
-          <h3>⚡ GMI Cloud LLM</h3>
-          <p>Powered by fast Qwen3.8-Flash (1M context) for instant natural language extraction.</p>
+          <h3>⚡ GMI Cloud (Gemini 3.5 Flash-Lite)</h3>
+          <p>Reads dates and wishes, explains each pick. Falls back to rules if it's unavailable.</p>
         </div>
       </div>
 
@@ -250,11 +250,11 @@
           <span class="speaker-tag">🗣️ Pitch Opening Script (Say this clearly):</span>
         </div>
         <div class="speaker-en">
-          "Hello judges! We created <strong>AsobiAgent</strong> — an AI multi-agent concierge that turns messy LINE group chats into fully booked weekend plans."
+          "Hello judges! We built <strong>AsobiAgent</strong>, a LINE bot that lets a group of friends decide where to meet and where to eat, without anyone having to be the organizer."
         </div>
         <div class="speaker-ja-pill">
-          <div class="speaker-ja-text">「こんにちは！私たちは、LINE上でグループのお出かけ計画を完全自動化する『AsobiAgent』を開発しました。」</div>
-          <div class="speaker-ja-romaji">"Konnichiwa! Watashitachi wa, LINE-jou de group no ode kake keikaku wo kanzen jidouka suru 'AsobiAgent' wo kaihatsu shimashita."</div>
+          <div class="speaker-ja-text">「こんにちは！私たちは、LINEグループのお出かけ計画を幹事なしで決められる『AsobiAgent』を開発しました。」</div>
+          <div class="speaker-ja-romaji">"Konnichiwa! Watashitachi wa, LINE group no odekake keikaku wo kanji nashi de kimerareru 'AsobiAgent' wo kaihatsu shimashita."</div>
         </div>
       </div>
     </section>
@@ -263,7 +263,7 @@
     <section class="slide">
       <div class="slide-category">Criterion 1: Real-World Problem (現場起点の切実な課題)</div>
       <h1 class="slide-title">Planning Tokyo Outings is <span>Exhausting</span></h1>
-      
+
       <div class="grid-3">
         <div class="card">
           <h3>😫 30+ Message Chaos</h3>
@@ -284,7 +284,7 @@
           <span class="speaker-tag">🗣️ Speaker Script:</span>
         </div>
         <div class="speaker-en">
-          "When friends plan an outing in Tokyo, it takes 30+ LINE messages, people argue over travel times, and everyone ends up waiting in a 45-minute queue in Shibuya. AsobiAgent eliminates this friction completely."
+          "When friends plan an outing in Tokyo, it takes 30+ LINE messages, people argue over travel times, and everyone ends up waiting in a 45-minute queue in Shibuya. AsobiAgent takes that work off the organizer."
         </div>
         <div class="speaker-ja-pill">
           <div class="speaker-ja-text">「友達とのお出かけは、LINEのやり取りが多く、移動時間の不満も生まれ、結局混雑に巻き込まれます。AsobiAgentはこの幹事負担をゼロにします。」</div>
@@ -293,31 +293,31 @@
       </div>
     </section>
 
-    <!-- SLIDE 3: Multi-Agent Workflow -->
+    <!-- SLIDE 3: Agents -->
     <section class="slide">
       <div class="slide-category">Criterion 2: Multi-Step Autonomous Workflow (複数ステップの自律実行)</div>
-      <h1 class="slide-title">4 Specialized <span>Autonomous Agents</span> in Harmony</h1>
+      <h1 class="slide-title">4 Agents, <span>Inside the Group Chat</span></h1>
 
       <div class="grid-4">
         <div class="card">
           <div style="color: #38BDF8; font-size: 11px; font-weight: bold; margin-bottom: 4px;">AGENT 1</div>
-          <h3>📅 Schedule Sync</h3>
-          <p>Listens to casual group banter. Extracts participant names, departure stations, and food tastes.</p>
+          <h3>📅 Who, From Where, When</h3>
+          <p>Reads only the messages of people who joined the plan. Stations are checked against Ekispert's station list; dates and wishes go through the LLM.</p>
         </div>
         <div class="card" style="border-color: #38BDF8;">
           <div style="color: #38BDF8; font-size: 11px; font-weight: bold; margin-bottom: 4px;">AGENT 2 (EKISPERT)</div>
-          <h3>🚇 Hub Balancer</h3>
-          <p>Queries Ekispert range search to compute the fairest midpoint station within ±5 min travel equality.</p>
+          <h3>🚇 Fair Meeting Station</h3>
+          <p>One range search returns every station all members can reach, with each person's average minutes. The shortest worst-case trip wins.</p>
         </div>
         <div class="card">
           <div style="color: #38BDF8; font-size: 11px; font-weight: bold; margin-bottom: 4px;">AGENT 3</div>
-          <h3>🌿 Spot Discovery</h3>
-          <p>Avoids crowded tourist chains. Discovers calm back-alley venues and hidden gems (穴場).</p>
+          <h3>🌿 Real Venues</h3>
+          <p>Real HotPepper venues plus places Time Out has covered. Places closed at the planned time are dropped; crowding is labelled as an estimate.</p>
         </div>
         <div class="card" style="border-color: #06C755;">
           <div style="color: #06C755; font-size: 11px; font-weight: bold; margin-bottom: 4px;">AGENT 4</div>
-          <h3>📞 Voice Booking</h3>
-          <p>Directly places an AI phone call to non-tech Japanese venues and secures reservations.</p>
+          <h3>📝 Ready to Book</h3>
+          <p>The booking page, a call script with one-tap dialing, and an AI agent that fills a (demo) reservation form. It never calls or books on its own.</p>
         </div>
       </div>
 
@@ -326,39 +326,39 @@
           <span class="speaker-tag">🗣️ Speaker Script:</span>
         </div>
         <div class="speaker-en">
-          "Our system runs 4 sequential agents: Agent 1 parses the chat, Agent 2 calculates the equal midpoint using Ekispert, Agent 3 curates low-crowd spots, and Agent 4 calls the restaurant directly to book a table."
+          "Four agents work inside the chat: Agent 1 reads where people are coming from, Agent 2 finds the fairest station with Ekispert, Agent 3 picks real venues for the group to vote on, and Agent 4 gets everything ready to book. The organizer makes the call."
         </div>
         <div class="speaker-ja-pill">
-          <div class="speaker-ja-text">「システムは4つのエージェントで構成されます。雑談から出発駅を読み取り、駅すぱあとAPIで公平な中間駅を割り出し、穴場を提案し、店舗への電話予約まで自律的に完遂します。」</div>
-          <div class="speaker-ja-romaji">"System wa 4-tsu no agent de kousei saremasu. Zatsudan kara shuppatsueki wo yomitori, Ekispert API de kouhei na chuukan-eki wo waridashi, anaba wo teian shi, tenpo e no denwa yoyaku made jiritsuteki ni kansui shimasu."</div>
+          <div class="speaker-ja-text">「雑談から出発駅を読み取り、駅すぱあとで公平な集合駅を決め、実在のお店を投票で選び、予約の準備までを自動で行います。」</div>
+          <div class="speaker-ja-romaji">"Zatsudan kara shuppatsu-eki wo yomitori, Ekisupaato de kouhei na shuugou-eki wo kime, jitsuzai no omise wo touhyou de erabi, yoyaku no junbi made wo jidou de okonaimasu."</div>
         </div>
       </div>
     </section>
 
-    <!-- SLIDE 4: Ekispert Compliance & Innovation -->
+    <!-- SLIDE 4: Ekispert -->
     <section class="slide">
       <div class="slide-category">Hackathon Compliance & API Integrity</div>
       <h1 class="slide-title">Strict Compliance: <span>Non-Timetable Usage</span></h1>
 
       <div class="grid-2">
         <div class="card" style="border-color: #38BDF8;">
-          <h3>🛡️ Strict Hackathon Rule Adherence</h3>
-          <p style="margin-bottom: 12px;">We strictly avoid specific timetable/schedule queries (`ダイヤ情報不使用`).</p>
+          <h3>🛡️ Only Timetable-Free Tools</h3>
+          <p style="margin-bottom: 12px;">No timetable or departure-time searches (ダイヤ情報不使用).</p>
           <ul style="padding-left: 20px; font-size: 13.5px; line-height: 1.8; color: #CBD5E1;">
-            <li>Uses <code>ekispert_api_search_ranges</code> (reachable station space)</li>
-            <li>Uses <code>searchType: plain</code> (average transit duration)</li>
-            <li>Balances maximum travel time and variance across all attendees</li>
+            <li><code>ekispert_api_search_ranges</code> with averaged waits: one call gives every member's average minutes</li>
+            <li><code>ekispert_api_get_stations</code> confirms that 「〇〇から」 is a real station</li>
+            <li>Results are cached, so repeat questions cost nothing</li>
           </ul>
         </div>
         <div class="card" style="border-color: #06C755;">
-          <h3>⚖️ Real Test Result</h3>
-          <p style="margin-bottom: 8px;">4 friends coming from Yokohama, Nakameguro, Kichijoji, and Kashiwa:</p>
+          <h3>⚖️ How "Fair" Is Decided</h3>
+          <p style="margin-bottom: 8px;">1) shortest worst-case trip, 2) then the smallest gap between members, 3) then the lowest average.</p>
           <div style="background: #0B0F19; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 12.5px; color: #4ADE80; line-height: 1.6;">
-            • Yokohama: 44 mins<br>
-            • Nakameguro: 39 mins<br>
-            • Kichijoji: 37 mins<br>
-            • Kashiwa: 42 mins<br>
-            ➔ Fair Midpoint: <strong>Okachimachi / Ueno (±4 min difference!)</strong>
+            • Yokohama: 42 mins<br>
+            • Kichijoji: 39 mins<br>
+            • Nakameguro: 40 mins<br>
+            • Kashiwa: 44 mins<br>
+            ➔ Meeting station: <strong>Akihabara (max 44 min, 5 min gap)</strong>
           </div>
         </div>
       </div>
@@ -368,32 +368,32 @@
           <span class="speaker-tag">🗣️ Speaker Script:</span>
         </div>
         <div class="speaker-en">
-          "We strictly adhere to the hackathon's rules by not using timetable searches. Instead, we use topological range searches and average transit times to calculate the fairest hub station in sub-seconds."
+          "We don't use any timetable searches. A single range search tells us every station the whole group can reach and each person's average travel time, so we pick the station where the person with the longest trip has it easiest."
         </div>
         <div class="speaker-ja-pill">
-          <div class="speaker-ja-text">「規約に従い、時刻指定ダイヤ探索は使っていません。範囲探索と平均探索のみを用いて、全員の移動時間がほぼ均等になる公平なハブ駅を高速に算出しています。」</div>
-          <div class="speaker-ja-romaji">"Kiyaku ni shitagai, jikoku shitei daiya tansaku wa tsukatte imasen. Han'i tansaku to heikin tansaku nomi wo mochiite, zen'in no idou jikan ga hobo kintou ni naru kouhei na habu-eki wo kousoku ni sanshutsu shite imasu."</div>
+          <div class="speaker-ja-text">「時刻指定のダイヤ検索は使っていません。範囲探索を1回呼ぶだけで、全員の平均所要時間が分かります。」</div>
+          <div class="speaker-ja-romaji">"Jikoku shitei no daiya kensaku wa tsukatte imasen. Han'i tansaku wo ikkai yobu dake de, zen'in no heikin shoyou jikan ga wakarimasu."</div>
         </div>
       </div>
     </section>
 
-    <!-- SLIDE 5: Tech Stack & Zero-Friction UX -->
+    <!-- SLIDE 5: UX & stack -->
     <section class="slide">
       <div class="slide-category">Criterion 3: Low-Cognitive-Load UX (認知負荷を下げる体験設計)</div>
-      <h1 class="slide-title">Embedded in <span>LINE</span> — Zero App Downloads</h1>
+      <h1 class="slide-title">Embedded in <span>LINE</span>, Running on <span>Google Cloud</span></h1>
 
       <div class="grid-3">
         <div class="card">
           <h3>📱 LINE Flex Cards</h3>
-          <p>Interactive bubbles, travel fairness charts, venue carousels, and reservation ticket cards rendered directly in the group chat.</p>
+          <p>Join, OK and vote are single taps that show up as the person's own message. The bot only speaks when something changes, and only by reply, so it uses no push quota.</p>
         </div>
         <div class="card">
-          <h3>⚡ GMI Cloud GPU</h3>
-          <p>Powered by Qwen3.8-Flash on GMI Cloud's H100 infrastructure, optimized with parallel execution for responsive interaction.</p>
+          <h3>⚡ GMI Cloud</h3>
+          <p>Gemini 3.5 Flash-Lite reads dates and wishes and writes a one-line reason per venue. Capped per day; rule-based fallback if it's down.</p>
         </div>
         <div class="card">
-          <h3>☁️ Google Cloud Ready</h3>
-          <p>FastAPI backend configured for one-command deployment on Google Cloud Run with ADC authentication.</p>
+          <h3>☁️ Live on Google Cloud</h3>
+          <p>Cloud Run (the bot), Firestore in Tokyo, and a Cloud Run Job running Playwright for the form agent. Scales to zero when idle.</p>
         </div>
       </div>
 
@@ -402,32 +402,70 @@
           <span class="speaker-tag">🗣️ Speaker Script:</span>
         </div>
         <div class="speaker-en">
-          "Users do not need to download another app or sign up for accounts. Everything happens seamlessly inside their existing LINE group chat via Flex Messages."
+          "No app to download and no account to create. It all happens in the LINE group people already use, one tap at a time."
         </div>
         <div class="speaker-ja-pill">
-          <div class="speaker-ja-text">「ユーザーは新しいアプリを入れる必要はありません。いつものLINEグループ内で、美しいカードUIを通じて直感的に完結します。」</div>
-          <div class="speaker-ja-romaji">"User wa atarashii app wo ireru hitsuyou wa arimasen. Itsumo no LINE group nai de, utsukushii card UI wo tsuujite chokkanteki ni kanketsu shimasu."</div>
+          <div class="speaker-ja-text">「アプリのダウンロードもアカウント登録も不要です。いつものLINEグループで、ボタンを押すだけで決まります。」</div>
+          <div class="speaker-ja-romaji">"Apuri no daunroodo mo akaunto touroku mo fuyou desu. Itsumo no LINE group de, botan wo osu dake de kimarimasu."</div>
         </div>
       </div>
     </section>
 
-    <!-- SLIDE 6: Live Demo Call-to-Action -->
+    <!-- SLIDE 6: Trust -->
+    <section class="slide">
+      <div class="slide-category">Built to Be Trusted (安心して使える設計)</div>
+      <h1 class="slide-title">Reads Nothing Until Called, <span>Forgets When Done</span></h1>
+
+      <div class="grid-4">
+        <div class="card">
+          <h3>🔑 Invite Only</h3>
+          <p>Only people verified with a single-use invite code can switch the bot on in a group.</p>
+        </div>
+        <div class="card">
+          <h3>🙈 Quiet by Default</h3>
+          <p>Idle chat is dropped unread. While planning, only participants' messages are read.</p>
+        </div>
+        <div class="card">
+          <h3>🧹 Deleted at the Decision</h3>
+          <p>LINE IDs are stored only as hashes. Chat text goes after the search; names and votes at the decision.</p>
+        </div>
+        <div class="card">
+          <h3>🧾 Bounded Cost</h3>
+          <p>One venue, three searches and seven days per group, plus daily caps for the whole service.</p>
+        </div>
+      </div>
+
+      <div class="speaker-box">
+        <div class="speaker-box-header">
+          <span class="speaker-tag">🗣️ Speaker Script:</span>
+        </div>
+        <div class="speaker-en">
+          "It's invite-only and reads nothing until someone calls it. Once a venue is decided, personal data is deleted and the bot leaves the group."
+        </div>
+        <div class="speaker-ja-pill">
+          <div class="speaker-ja-text">「招待制で、呼ばれるまでトークは読みません。お店が決まったら個人の情報は削除し、ボットはグループを退出します。」</div>
+          <div class="speaker-ja-romaji">"Shoutaisei de, yobareru made tooku wa yomimasen. Omise ga kimattara kojin no jouhou wa sakujo shi, botto wa guruupu wo taishutsu shimasu."</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: Live Demo -->
     <section class="slide">
       <div class="slide-category">Criterion 5: High-Impact Demo (一目で伝わるデモ)</div>
       <h1 class="slide-title">Let's Watch the <span>Live Demo</span>!</h1>
 
       <div class="grid-3" style="margin-bottom: 24px;">
         <div class="card" style="border-color: #06C755;">
-          <h3>1. Instant Chat Extraction</h3>
-          <p>Watch 4 friends with different origins chat naturally in LINE.</p>
+          <h3>1. Stations From Chat</h3>
+          <p>Four friends from Yokohama, Nakameguro, Kichijoji and Kashiwa, checked against Ekispert's station list.</p>
         </div>
         <div class="card" style="border-color: #38BDF8;">
-          <h3>2. Ekispert Midpoint Card</h3>
-          <p>See the calculated midpoint station and travel time fairness bars.</p>
+          <h3>2. Fair Meeting Station</h3>
+          <p>The station and everyone's average travel time, from Ekispert.</p>
         </div>
         <div class="card" style="border-color: #FBBF24;">
-          <h3>3. Autonomous Phone Call</h3>
-          <p>Hear the AI agent dial the restaurant and book the table in Japanese!</p>
+          <h3>3. Venue and Booking Kit</h3>
+          <p>Pick a real venue: booking page, call script, and the AI form agent (demo).</p>
         </div>
       </div>
 

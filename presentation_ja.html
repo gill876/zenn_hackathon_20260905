@@ -266,7 +266,7 @@
     </div>
     <div class="nav-controls">
       <button class="btn-nav" id="prevBtn">◀ 前へ</button>
-      <span class="slide-indicator" id="slideIndicator">1 / 6</span>
+      <span class="slide-indicator" id="slideIndicator">1 / 7</span>
       <button class="btn-nav" id="nextBtn">次へ ▶</button>
       <a href="/presentation_en.html" class="btn-lang">English Deck / Script</a>
       <a href="/" class="btn-demo" target="_blank">🚀 ライブデモを開く</a>
@@ -281,26 +281,26 @@
       <div class="slide-category">第5回 Agentic AI Hackathon with Google Cloud</div>
       <h1 class="slide-title">AsobiAgent <span>(アソビ・エージェント)</span></h1>
       <p class="slide-content" style="font-size: 20px; max-width: 800px; margin-bottom: 30px;">
-        LINEグループ内で自然な雑談から<strong>「スケジュール調整」➔「公平な中間駅算出」➔「混雑回避スポット提案」➔「自律AI電話予約」</strong>までを全自動化する幹事支援マルチエージェント。
+        LINEグループの中で<strong>「出発駅の確認」➔「公平な集合駅（駅すぱあと）」➔「実在のお店から投票」➔「予約の準備」</strong>までを進める、幹事いらずのマルチエージェント。
       </p>
       <div class="grid-3" style="max-width: 900px;">
         <div class="card card-highlight">
           <h3>🚇 駅すぱあと MCP</h3>
-          <p>規約遵守：ダイヤ情報不使用で公平な中間駅・移動時間を最適化</p>
+          <p>ダイヤ情報不使用。範囲探索1回で、全員の平均所要時間を取得</p>
         </div>
         <div class="card card-green">
           <h3>💬 LINE Flex Message</h3>
-          <p>専用アプリ不要。LINEグループ内で直感的なカードUIを提供</p>
+          <p>アプリ不要。参加・確認・投票はボタンを押すだけ</p>
         </div>
         <div class="card">
-          <h3>⚡ GMI Cloud (Qwen3.8-Flash)</h3>
-          <p>超高速LLM推論で会話抽出・穴場店舗選定を瞬時に自律実行</p>
+          <h3>⚡ GMI Cloud (Gemini 3.5 Flash-Lite)</h3>
+          <p>日時・希望の読み取りとお店選び。止まってもルールで動き続ける</p>
         </div>
       </div>
       <div class="speaker-cheat-box" style="max-width: 900px;">
         <div class="label">🗣️ 発表用の最初の一言（カンペ）</div>
-        <p>「こんにちは！私たちは、LINE上でグループのお出かけ計画を完全自動化する『AsobiAgent』を開発しました。」</p>
-        <p class="romaji">"Konnichiwa! Watashitachi wa, LINE-jo de group no ode kake keikaku wo kanzen jidouka suru 'AsobiAgent' wo kaihatsu shimashita."</p>
+        <p>「こんにちは！私たちは、LINEグループのお出かけ計画を幹事なしで決められる『AsobiAgent』を開発しました。」</p>
+        <p class="romaji">"Konnichiwa! Watashitachi wa, LINE group no odekake keikaku wo kanji nashi de kimerareru 'AsobiAgent' wo kaihatsu shimashita."</p>
       </div>
     </section>
 
@@ -328,107 +328,135 @@
       </div>
     </section>
 
-    <!-- SLIDE 3: Architecture -->
+    <!-- SLIDE 3: Agents -->
     <section class="slide">
       <div class="slide-category">複数ステップの自律実行</div>
-      <h1 class="slide-title">4つの自律エージェントが連携する<span>Pipeline</span></h1>
+      <h1 class="slide-title">4つのエージェントが<span>LINEグループの中</span>で連携</h1>
       <div class="grid-4">
         <div class="agent-box">
           <div class="tag">Agent 1</div>
-          <h4>📅 スケジュール同期</h4>
-          <p>自然言語のLINE雑談から、参加メンバー・出発駅・食事の希望を自動抽出。</p>
+          <h4>📅 出発駅・日時の読み取り</h4>
+          <p>呼ばれてから参加した人のメッセージだけを読む。駅名は駅すぱあとの駅データで確認し、日時と希望はLLMで抽出。</p>
         </div>
         <div class="agent-box" style="border-color: var(--accent-blue);">
           <div class="tag">Agent 2 (駅すぱあと)</div>
-          <h4>🚇 中間地点バランサー</h4>
-          <p>全員の移動時間差が最小（±5分以内）になる最も公平な中間駅をAPIで自動算出。</p>
+          <h4>🚇 公平な集合駅</h4>
+          <p>範囲探索1回で、全員が行ける駅と各自の平均所要時間を取得。一番遠い人の時間が最も短くなる駅を選ぶ。</p>
         </div>
         <div class="agent-box">
           <div class="tag">Agent 3</div>
-          <h4>🌿 混雑回避スポット探索</h4>
-          <p>駅直結の混雑店を避け、静かに会話できる裏路地・隠れ家（穴場）を3軒厳選。</p>
+          <h4>🌿 実在のお店選び</h4>
+          <p>ホットペッパーの実在店舗とTime Out掲載店から候補を作成。予定時刻に閉まっている店は除外し、混雑度は「推定」と明記。</p>
         </div>
         <div class="agent-box" style="border-color: var(--accent-green);">
           <div class="tag">Agent 4</div>
-          <h4>📞 自律AI電話予約</h4>
-          <p>Web予約非対応の店舗へAIが直接日本語で架電。席を確保しLINEにチケット発行。</p>
+          <h4>📝 予約の準備</h4>
+          <p>予約ページ、電話用の台本（ワンタップ発信）、デモ用フォームへのAI自動入力を用意。AIが勝手に電話や予約確定はしない。</p>
         </div>
       </div>
       <div class="speaker-cheat-box">
         <div class="label">🗣️ 発表用スクリプト</div>
-        <p>「システムは4つのエージェントで構成されます。雑談から出発駅を読み取り、駅すぱあとAPIで公平な中間駅を割り出し、穴場を提案し、店舗への電話予約まで自律的に完遂します。」</p>
+        <p>「雑談から出発駅を読み取り、駅すぱあとで公平な集合駅を決め、実在のお店を投票で選び、予約の準備までを自動で行います。電話をかけるのは幹事本人です。」</p>
       </div>
     </section>
 
-    <!-- SLIDE 4: Ekispert Compliance -->
+    <!-- SLIDE 4: Ekispert -->
     <section class="slide">
       <div class="slide-category">ハッカソン規約遵守 & 技術的工夫</div>
-      <h1 class="slide-title">「駅すぱあと」APIの<span>ダイヤ情報不使用</span>を完全徹底</h1>
+      <h1 class="slide-title">「駅すぱあと」APIの<span>ダイヤ情報不使用</span>を徹底</h1>
       <div class="grid-2">
         <div class="card card-highlight">
-          <h3>🛡️ ハッカソン利用規約の遵守</h3>
+          <h3>🛡️ 使っているのは時刻表を使わない機能だけ</h3>
           <ul class="feature-list" style="margin-top: 10px;">
             <li><span class="icon-bullet">✅</span> <strong>ダイヤ探索（時刻指定探索）は一切不使用</strong></li>
-            <li><span class="icon-bullet">✅</span> <code>ekispert_api_search_ranges</code> による到達可能範囲探索を活用</li>
-            <li><span class="icon-bullet">✅</span> <code>searchType: plain</code>（平均乗車時間探索）による駅間移動コストの比較</li>
-            <li><span class="icon-bullet">✅</span> 時間調整やバッファ計算はLLMオーケストレーター側で自律処理</li>
+            <li><span class="icon-bullet">✅</span> <code>ekispert_api_search_ranges</code>（平均待ち時間込み）を1回呼ぶだけで全員分の平均所要時間を取得</li>
+            <li><span class="icon-bullet">✅</span> 「〇〇から」の駅名は <code>ekispert_api_get_stations</code> で照合</li>
+            <li><span class="icon-bullet">✅</span> 結果はキャッシュし、同じ問い合わせを繰り返さない</li>
           </ul>
         </div>
         <div class="card card-green">
-          <h3>⚖️ 移動時間の公平性アルゴリズム</h3>
-          <p style="margin-bottom: 12px;">特定の参加者だけが遠くならないよう、最大移動時間と標準偏差（時間格差）をペナルティ化し、スコア90点以上の最適ハブ駅を決定。</p>
+          <h3>⚖️ 公平な集合駅の選び方</h3>
+          <p style="margin-bottom: 12px;">①一番遠い人の移動時間が最短 ➔ ②同じなら移動時間の差が最小 ➔ ③それも同じなら平均が最小。</p>
           <div style="background: #0B0F19; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 12px; color: #4ADE80;">
-            横浜(44分) • 中目黒(39分) • 吉祥寺(37分) • 柏(42分)<br>
-            ➔ 最適解:「御徒町 / 上野」移動差わずか ±4分！
+            横浜(42分) • 吉祥寺(39分) • 中目黒(40分) • 柏(44分)<br>
+            ➔ 集合駅「秋葉原」：最大44分・差は5分
           </div>
         </div>
       </div>
       <div class="speaker-cheat-box">
         <div class="label">🗣️ 発表用スクリプト</div>
-        <p>「ハッカソンの規約に従い、時刻指定のダイヤ検索は一切使っていません。範囲探索と平均探索のみを用いて、全員の移動時間がほぼ均等になる公平なハブ駅を高速に算出しています。」</p>
+        <p>「時刻指定のダイヤ検索は使っていません。範囲探索を1回呼ぶだけで、全員が行ける駅と各自の平均所要時間が分かります。一番遠い人の負担が最も小さい駅を選びます。」</p>
       </div>
     </section>
 
-    <!-- SLIDE 5: Technology & Innovation -->
+    <!-- SLIDE 5: UX & stack -->
     <section class="slide">
       <div class="slide-category">技術スタック & 認知負荷を下げるUX</div>
-      <h1 class="slide-title">外部アプリ不要 — <span>LINE Flex UI</span> & <span>GMI Cloud</span></h1>
+      <h1 class="slide-title">アプリ不要 — <span>LINE</span> & <span>Google Cloud</span></h1>
       <div class="grid-3">
         <div class="card">
           <h3>📱 LINE Flex Message</h3>
-          <p>URL遷移や専用アプリ不要。LINEグループ内にリッチな確認カード、中間駅グラフ、穴場カルーセル、予約チケットを直接描画。</p>
+          <p>参加・OK・投票はボタン1つ。押した内容はその人の発言として表示され、ボットは必要なときだけ話す（すべて返信なのでプッシュ通数0）。</p>
         </div>
         <div class="card">
-          <h3>⚡ GMI Cloud (Qwen3.8-Flash)</h3>
-          <p>100万トークン対応の高速GPU推論を活用。並列処理と軽量化により、複数往復の会話でも数秒での応答を実現。</p>
+          <h3>⚡ GMI Cloud</h3>
+          <p>Gemini 3.5 Flash-Liteで日時・希望を抽出し、候補の理由を一文で説明。1日の上限つきで、止まってもルールで動作。</p>
         </div>
         <div class="card">
-          <h3>☁️ Google Cloud Ready</h3>
-          <p>Cloud Runへのコンテナデプロイ対応。Google Cloudインフラストラクチャ上でスケーラブルに動作。</p>
+          <h3>☁️ Google Cloud で稼働中</h3>
+          <p>Cloud Run（ボット）＋ Firestore（東京）＋ Cloud Run Jobs（Playwrightのフォーム入力エージェント）。使われないときは0台まで縮小。</p>
         </div>
       </div>
       <div class="speaker-cheat-box">
         <div class="label">🗣️ 発表用スクリプト</div>
-        <p>「ユーザーは新しいアプリをダウンロードする必要はありません。いつものLINEグループ内でFlex Messageによる直感的なUIが完結します。」</p>
+        <p>「アプリのダウンロードもアカウント登録も不要です。いつものLINEグループで、ボタンを押すだけで決まります。」</p>
       </div>
     </section>
 
-    <!-- SLIDE 6: Demo Transition -->
+    <!-- SLIDE 6: Trust -->
+    <section class="slide">
+      <div class="slide-category">安心して使える設計</div>
+      <h1 class="slide-title">呼ばれるまで<span>読まない</span>、決まったら<span>消す</span></h1>
+      <div class="grid-4">
+        <div class="agent-box">
+          <h4>🔑 招待制</h4>
+          <p>招待コードで認証した人だけが、グループでボットを有効化できる。</p>
+        </div>
+        <div class="agent-box">
+          <h4>🙈 呼ばれるまで読まない</h4>
+          <p>待機中のトークは読まずに破棄。募集中も、参加した人のメッセージだけ。</p>
+        </div>
+        <div class="agent-box">
+          <h4>🧹 決まったら消す</h4>
+          <p>LINEのIDはハッシュ化。チャット本文は検索後、名前と投票は決定時に削除。</p>
+        </div>
+        <div class="agent-box">
+          <h4>🧾 使いすぎない</h4>
+          <p>1グループ1軒・検索3回・7日間。サービス全体にも1日の上限。</p>
+        </div>
+      </div>
+      <div class="speaker-cheat-box">
+        <div class="label">🗣️ 発表用スクリプト</div>
+        <p>「招待制で、呼ばれるまでトークは読みません。お店が決まったら個人の情報は削除し、ボットはグループを退出します。」</p>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: Demo -->
     <section class="slide">
       <div class="slide-category">ライブデモンストレーション</div>
       <h1 class="slide-title">それでは、実際の<span>Live Demo</span>をご覧ください！</h1>
       <div class="grid-3" style="margin-bottom: 20px;">
         <div class="card card-green">
-          <h3>1. LINE雑談の自動抽出</h3>
-          <p>4人のバラバラな出発駅（横浜・中目黒・吉祥寺・柏）をAIが自動認識</p>
+          <h3>1. 出発駅の読み取り</h3>
+          <p>4人のバラバラな出発駅（横浜・中目黒・吉祥寺・柏）を駅データで確認</p>
         </div>
         <div class="card card-highlight">
-          <h3>2. 駅すぱあと中間駅の算出</h3>
-          <p>全員の移動時間差が最小の駅を提示し、公平性グラフを表示</p>
+          <h3>2. 公平な集合駅</h3>
+          <p>駅すぱあとの平均所要時間で、集合駅と各自の移動時間を表示</p>
         </div>
         <div class="card">
-          <h3>3. 穴場提案＆リアル電話予約</h3>
-          <p>混雑回避スポットを選び、AIが自動で店舗へ架電して予約確定！</p>
+          <h3>3. お店選びと予約の準備</h3>
+          <p>実在のお店から選ぶと、予約ページ・電話用の台本・AIフォーム入力（デモ）を用意</p>
         </div>
       </div>
       <div style="text-align: center; margin-top: 10px;">

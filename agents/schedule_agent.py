@@ -7,6 +7,7 @@ If the model is unavailable, a keyword table and the rule-based date hint fill i
 
 from typing import Any, Optional
 
+from bot.text_parse import _normalize_day
 from services.hotpepper_client import BUDGETS, GENRES
 from services.llm_client import LLMClient
 
@@ -49,6 +50,8 @@ def _clean(raw: dict[str, Any], fallback: dict[str, Any]) -> dict[str, Any]:
         value = raw.get(key)
         if isinstance(value, str) and value.strip() and value.strip().lower() not in {"null", "none", "不明"}:
             out[key] = value.strip()[:20]
+    if out.get("day") and out["day"] != fallback.get("day"):
+        out["day"] = _normalize_day(out["day"])          # 来週土曜日 → 来週土曜, so dates resolve
     if out.get("meal") not in {None, "lunch", "dinner", "cafe", "drinks"}:
         out["meal"] = fallback.get("meal")
     if raw.get("genre") in GENRES:
