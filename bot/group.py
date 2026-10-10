@@ -28,7 +28,7 @@ from agents.group_picks import group_picks
 from bot import poll as polls
 from bot import texts
 from bot.deps import Deps
-from bot.text_parse import JOIN_WORDS, PASS_WORDS, date_hint, hint_text, is_trigger_text, merge_hints
+from bot.text_parse import JOIN_WORDS, PASS_WORDS, date_hint, hint_text, is_trigger_text, merge_hints, strip_trigger
 from services import line_flex
 from services.ids import new_nonce
 from services.store import KEEP
@@ -230,9 +230,7 @@ class GroupBot:
         text = message.get("text", "")
         mentioned = any(m.get("isSelf") for m in (message.get("mention") or {}).get("mentionees") or [])
         trigger = mentioned or is_trigger_text(text)
-        request = _strip_self_mentions(message)
-        if is_trigger_text(request):
-            request = request.split(maxsplit=1)[1] if len(request.split(maxsplit=1)) > 1 else ""
+        request = strip_trigger(_strip_self_mentions(message))
 
         gated = await self._gate(c)
         if gated is None:

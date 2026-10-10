@@ -95,3 +95,9 @@ def test_time_out_badge_links_without_copying_content():
     card = json.dumps(line_flex.venues_carousel("n", [s], picks, ["A"], 0, 0, [featured]), ensure_ascii=False)
     assert "Time Out で紹介されています" in card and "Time Outの記事" in card
     assert index.match(shop(5)) is None   # far away
+
+
+def test_hand_typed_bot_name_is_stripped():
+    from bot.text_parse import is_trigger_text, strip_trigger
+    for text in ("@AsobiAgent M1 日程調整", "＠asobiagent m1  日程調整", "@AsobiAgent 日程調整"):
+        assert is_trigger_text(text) and strip_trigger(text) == "日程調整"

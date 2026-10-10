@@ -136,7 +136,8 @@ def hint_text(hint: Optional[dict[str, str]]) -> Optional[str]:
     return " ".join(parts) or None
 
 
-_TRIGGER = re.compile(r"^\s*[@＠]\s*(asobi\s*agent|アソビ|あそび)", re.IGNORECASE)
+# 「@AsobiAgent M1 …」 typed by hand (not picked from LINE's @ list, so no mention data comes with it).
+_TRIGGER = re.compile(r"^\s*[@＠]\s*(asobi\s*agent(\s*m\d+)?|アソビ|あそび)\s*", re.IGNORECASE)
 JOIN_WORDS = {"参加する", "参加", "参加します", "さんか"}
 PASS_WORDS = {"今回はパス", "パス", "不参加"}
 
@@ -153,6 +154,11 @@ def spelling_variants(name: str) -> list[str]:
 
 def is_trigger_text(text: str) -> bool:
     return bool(_TRIGGER.search(text)) or text.strip() == "プランを立てる"
+
+
+def strip_trigger(text: str) -> str:
+    """「@AsobiAgent M1 日程調整」 → 「日程調整」."""
+    return _TRIGGER.sub("", text, count=1).strip()
 
 
 _WEEKDAYS = "月火水木金土日"
