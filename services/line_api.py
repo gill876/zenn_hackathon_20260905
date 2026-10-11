@@ -67,6 +67,14 @@ class HttpLineApi:
             return None
         return resp.json().get("displayName")
 
+    async def member_count(self, chat_kind: str, chat_id: str) -> Optional[int]:
+        """People in the group, not counting the bot."""
+        kind = "group" if chat_kind == "group" else "room"
+        resp = await self._client.get(f"/v2/bot/{kind}/{chat_id}/members/count")
+        if resp.status_code >= 300:
+            return None
+        return resp.json().get("count")
+
     async def profile_name(self, user_id: str) -> Optional[str]:
         resp = await self._client.get(f"/v2/bot/profile/{user_id}")
         if resp.status_code >= 300:
@@ -96,6 +104,7 @@ class RecordingLineApi:
         self.replies: list[dict[str, Any]] = []
         self.left: list[tuple[str, str]] = []
         self.names = names or {}
+        self.members: Optional[int] = None
 
     async def reply(self, reply_token: str, messages: list[dict[str, Any]]) -> bool:
         assert len(messages) <= 5, "LINE accepts at most 5 messages per reply"
@@ -108,6 +117,9 @@ class RecordingLineApi:
 
     async def member_name(self, chat_kind: str, chat_id: str, user_id: str) -> Optional[str]:
         return self.names.get(user_id)
+
+    async def member_count(self, chat_kind: str, chat_id: str) -> Optional[int]:
+        return self.members
 
     async def profile_name(self, user_id: str) -> Optional[str]:
         return self.names.get(user_id)

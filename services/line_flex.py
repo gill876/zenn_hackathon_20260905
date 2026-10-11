@@ -84,6 +84,29 @@ def bubble(body: list[dict], footer: Optional[list[dict]] = None, hero: Optional
     return node
 
 
+def quick_postback(label: str, data: dict[str, str], display: str) -> dict:
+    """A quick reply button: shown above the chat's input box until someone sends something."""
+    return {"type": "action", "action": {"type": "postback", "label": label[:20], "data": urlencode(data)[:300],
+                                         "displayText": display[:300]}}
+
+
+def quick_message(label: str, text_value: str) -> dict:
+    return {"type": "action", "action": {"type": "message", "label": label[:20], "text": text_value[:300]}}
+
+
+def with_quick(messages: list[dict], items: list[dict]) -> list[dict]:
+    """Attach quick reply buttons to the last message (LINE shows those of the latest message)."""
+    if messages and items:
+        messages = list(messages)
+        messages[-1] = dict(messages[-1], quickReply={"items": items[:13]})
+    return messages
+
+
+def short(name: str, limit: int = 18) -> str:
+    name = name or ""
+    return name if len(name) <= limit else name[:limit - 1] + "…"
+
+
 def flex(alt: str, contents: dict) -> dict:
     return {"type": "flex", "altText": alt[:400], "contents": contents}
 
@@ -199,7 +222,7 @@ def _time_out_bubble(nonce: str, label: str, shop: dict, pick: dict) -> dict:
 
 
 def _vote_button(nonce: str, label: str, shop: dict) -> dict:
-    return postback("🗳 ここがいい", {"a": "vote", "p": nonce, "v": shop["id"]}, f"🗳 {label} {shop['name'][:14]}")
+    return postback("🗳 ここがいい", {"a": "vote", "p": nonce, "v": shop["id"]}, f"🗳 {label} {short(shop['name'], 22)}")
 
 
 def suggestion_bubble(nonce: str, label: str, shop: dict, pick: dict) -> dict:
@@ -277,18 +300,26 @@ def venues_carousel(nonce: str, shops: list[dict], picks: list[dict], labels: li
     return flex("お店の候補です。いいと思うお店にいくつでも投票してください。", {"type": "carousel", "contents": bubbles})
 
 
+def _vote_row(name: str, count: int, scale: int) -> dict:
+    pct = max(4, min(100, round(count / max(1, scale) * 100)))
+    return box([
+        text(short(name, 26), size="xs", color=INK, wrap=False),
+        box([box([box([], width=f"{pct}%", height="6px", backgroundColor=ACCENT, cornerRadius="3px")],
+                 flex=6, height="6px", backgroundColor=LINE_GREY, cornerRadius="3px", justifyContent="center"),
+             text(f"{count}票", size="xxs", color=INK, flex=1, align="end")],
+            layout="horizontal", spacing="sm", alignItems="center"),
+    ], spacing="xs")
+
+
 def results_card(rows: list[tuple[str, int]], voters: int, total: int, missing: list[str], heading: str,
                  nonce: Optional[str] = None) -> dict:
-    scale = max(1, total)
-    bars = [_bar(name[:10], count, scale) for name, count in rows[:6]]
-    for b in bars:   # the bar helper shows minutes; votes read better as plain counts
-        b["contents"][2]["text"] = b["contents"][2]["text"].replace("分", "")
     body = [kicker(f"{'投票結果' if voters >= total else '途中結果'} · {voters}/{total}人が投票"), title(heading),
-            box(bars, spacing="sm", margin="md") if bars else text("まだ投票がありません。", size="sm")]
+            box([_vote_row(name, count, total) for name, count in rows[:6]], spacing="md", margin="md")
+            if rows else text("まだ投票がありません。", size="sm")]
     if missing:
         body.append(note("まだの人：" + "・".join(missing[:8])))
     footer = [postback("決める（幹事）", {"a": "close", "p": nonce}, "決める", style="secondary")] if nonce and voters < total else None
-    return flex(f"{heading}（{voters}/{total}人が投票）", bubble(body, footer, size="mega"))
+    return flex(f"{short(heading, 40)}（{voters}/{total}人が投票）", bubble(body, footer, size="mega"))
 
 
 # ---- profiles and date poll ---------------------------------------------------------------------

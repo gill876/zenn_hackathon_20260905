@@ -30,7 +30,7 @@ async def handle(deps: Deps, ev: dict[str, Any]) -> None:
         user = await deps.store.get("users", uhash)
         verified = is_admin or bool(user and user.get("verified"))
         greeting = texts.GREETING_ADMIN if is_admin else texts.GREETING_VERIFIED if verified else texts.GREETING
-        await deps.reply(ev, [line_flex.plain(greeting)] + _profile_offer(deps, verified))
+        await _reply(deps, ev, [line_flex.plain(greeting)] + _profile_offer(deps, verified), verified)
         return
 
     if ev["type"] != "message" or ev.get("message", {}).get("type") != "text":
@@ -38,8 +38,8 @@ async def handle(deps: Deps, ev: dict[str, Any]) -> None:
     text = ev["message"]["text"].strip()
     if text in ("プロフィール", "/profile", "好み"):
         user = await deps.store.get("users", uhash)
-        offer = _profile_offer(deps, is_admin or bool(user and user.get("verified")))
-        await deps.reply(ev, offer or [line_flex.plain(texts.ASK_FOR_CODE)])
+        verified = is_admin or bool(user and user.get("verified"))
+        await _reply(deps, ev, _profile_offer(deps, verified) or [line_flex.plain(texts.ASK_FOR_CODE)], verified)
         return
     if is_admin and text.startswith("/"):
         await _admin_command(deps, ev, text)
@@ -49,8 +49,8 @@ async def handle(deps: Deps, ev: dict[str, Any]) -> None:
         await _redeem(deps, ev, uhash, code)
         return
     user = await deps.store.get("users", uhash)
-    await deps.reply(ev, [line_flex.plain(texts.ALREADY_VERIFIED if user and user.get("verified")
-                                          else texts.ASK_FOR_CODE)])
+    verified = is_admin or bool(user and user.get("verified"))
+    await _reply(deps, ev, [line_flex.plain(texts.ALREADY_VERIFIED if verified else texts.ASK_FOR_CODE)], verified)
 
 
 async def _ensure_admin(deps: Deps, uhash: str) -> None:
@@ -88,7 +88,13 @@ async def _redeem(deps: Deps, ev: dict[str, Any], uhash: str, code: str) -> None
         "ok": texts.verified(left), "already": texts.ALREADY_VERIFIED, "unknown": texts.CODE_UNKNOWN,
         "used": texts.CODE_USED, "expired": texts.CODE_EXPIRED,
     }[outcome]
-    await deps.reply(ev, [line_flex.plain(message)] + (_profile_offer(deps, True) if outcome == "ok" else []))
+    await _reply(deps, ev, [line_flex.plain(message)] + (_profile_offer(deps, True) if outcome == "ok" else []),
+                 outcome in ("ok", "already"))
+
+
+async def _reply(deps: Deps, ev: dict[str, Any], messages: list[dict[str, Any]], verified: bool) -> None:
+    quick = [line_flex.quick_message("👤 プロフィール", "プロフィール")] if verified and deps.settings.liff_id else []
+    await deps.reply(ev, line_flex.with_quick(messages, quick))
 
 
 def _profile_offer(deps: Deps, verified: bool) -> list[dict[str, Any]]:

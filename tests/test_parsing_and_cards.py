@@ -40,9 +40,11 @@ def test_hashed_ids_and_signed_links():
 
 
 def test_call_script_never_claims_a_booking():
-    script = call_script("テスト店", "来週土曜", "13:00", 4, "佐藤")
-    assert script["lines"][0].startswith("「来週土曜の13:00から、4名で")
-    assert call_script("テスト店", None, None, 2, "佐藤")["lines"][0].startswith("「（日時）")
+    script = call_script("テスト店", "10/17(土)", "13:00", 4, "佐藤")
+    assert script["lines"][0].startswith("「10/17(土)の13:00から、4名で")
+    lunch = call_script("テスト店", "11/21(土)", None, 2, "佐藤", "lunch")["lines"]
+    assert lunch[0].startswith("「11/21(土)のランチに、2名で") and "何時から" in lunch[1]
+    assert call_script("テスト店", None, None, 2, "佐藤")["lines"][0].startswith("「（日にちと時間）に")
 
 
 def _buttons(node):

@@ -28,7 +28,8 @@ from agents.group_picks import group_picks
 from bot import poll as polls
 from bot import texts
 from bot.deps import Deps
-from bot.text_parse import JOIN_WORDS, PASS_WORDS, date_hint, hint_text, is_trigger_text, merge_hints, strip_trigger
+from bot.text_parse import (JOIN_WORDS, PASS_WORDS, date_hint, day_label, hint_text, is_trigger_text, merge_hints,
+                             strip_trigger)
 from services import line_flex
 from services.ids import new_nonce
 from services.store import KEEP
@@ -83,10 +84,21 @@ def _station_rows(plan: dict[str, Any]) -> list[tuple[str, Optional[str]]]:
     return [(p["name"], (p.get("station") or {}).get("name")) for p in _people(plan)]
 
 
+MEAL_LABEL = {"lunch": "ランチ", "dinner": "夜", "cafe": "お茶", "drinks": "飲み"}
+
+
+def _when_parts(plan: dict[str, Any]) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    details, hint = plan.get("details") or {}, plan.get("hint") or {}
+    return (details.get("day") or hint.get("day"), details.get("time") or hint.get("time"),
+            details.get("meal") or hint.get("meal"))
+
+
 def _when(plan: dict[str, Any]) -> Optional[str]:
-    details = plan.get("details") or {}
-    parts = [p for p in (details.get("day"), details.get("time")) if p]
-    return " ".join(parts) if parts else hint_text(plan.get("hint"))
+    """「11/21(土) ランチ」, 「10/17(土) 13:00」, or None when the plan has no date yet."""
+    day, time, meal = _when_parts(plan)
+    today = dt.datetime.now(JST).date()
+    parts = [day_label(day, today) if day else None, time or MEAL_LABEL.get(meal or "")]
+    return " ".join(p for p in parts if p) or None
 
 
 def _all_votes(plan: dict[str, Any]) -> Counter:
@@ -144,6 +156,46 @@ class GroupBot:
     async def _leave(self, c: Ctx) -> None:
         await self.d.line.leave(c.kind, c.chat_id)
 
+    async def _say(self, c: Ctx, messages: list[dict[str, Any]]) -> None:
+        """Reply, with quick reply buttons for whatever can happen next in this group."""
+        await self.d.reply(c.ev, line_flex.with_quick(messages, await self._quick_items(c)))
+
+    async def _quick_items(self, c: Ctx) -> list[dict[str, Any]]:
+        q = line_flex.quick_postback
+        group = await self.d.store.get("groups", c.ghash)
+        if not group:
+            return []
+        if group.get("state") == "pending":
+            return [q("有効化する", {"a": "activate"}, "有効化する")]
+        if group.get("state") != "active":
+            return []
+        plan = await self.d.store.get("plans", c.ghash)
+        if plan:
+            n, phase = plan["nonce"], plan["phase"]
+            if phase == "gathering":
+                return [q("参加する", {"a": "join", "p": n}, "参加する"), q("今回はパス", {"a": "pass", "p": n}, "今回はパス"),
+                        q("もう探して（幹事）", {"a": "force", "p": n}, "もう探して")]
+            if phase == "ready":
+                return [q("✅ これでOK", {"a": "ready", "p": n}, "✅ OK"), q("もう探して（幹事）", {"a": "force", "p": n}, "もう探して")]
+            if phase == "voting":
+                items = [q("📊 結果を見る", {"a": "results", "p": n}, "📊 結果を見る")]
+                if len(plan.get("suggestions", [])) < MAX_SUGGESTIONS:
+                    items.append(q("💡 お店を提案", {"a": "suggest", "p": n}, "💡 お店を提案する"))
+                if (plan["page"] + 1) * PAGE < len(plan["picks"]):
+                    items.append(q("別の候補を見る", {"a": "more", "p": n}, "別の候補を見る"))
+                items.append(q("決める（幹事）", {"a": "close", "p": n}, "決める"))
+                return items
+            return []
+        poll = await self.d.store.get("polls", c.ghash)
+        if poll and poll.get("status") == "open":
+            n = poll["nonce"]
+            return [q("📊 日程の結果", {"a": "pollres", "p": n}, "📊 日程の結果を見る"),
+                    q("締め切る（幹事）", {"a": "pollclose", "p": n}, "締め切る"),
+                    q("🍽 プランを立てる", {"a": "start"}, "プランを立てる")]
+        if poll and poll.get("status") == "closed" and poll.get("best"):
+            return [q("🍽 このメンバーで立てる", {"a": "pollplan", "p": poll["nonce"]}, "このメンバーでプランを立てる")]
+        return [q("📅 日程を決める", {"a": "poll"}, "日程を決める"), q("🍽 プランを立てる", {"a": "start"}, "プランを立てる")]
+
     # ---- entry point ----------------------------------------------------------------------------
 
     async def handle(self, ev: dict[str, Any], kind: str, chat_id: str, user_id: Optional[str]) -> None:
@@ -174,13 +226,13 @@ class GroupBot:
 
         outcome, group = await self._txn(c.ghash, fn)
         if outcome == "used_up":
-            await self.d.reply(c.ev, [line_flex.plain(texts.USED_UP)])
+            await self._say(c, [line_flex.plain(texts.USED_UP)])
             await self._leave(c)
         elif outcome == "still_active":
-            await self.d.reply(c.ev, [line_flex.activated(s.plans_per_group - group.get("plans_used", 0),
+            await self._say(c, [line_flex.activated(s.plans_per_group - group.get("plans_used", 0),
                                                           self._searches_left(group), _day(group["active_until"]))])
         else:
-            await self.d.reply(c.ev, [line_flex.welcome()])
+            await self._say(c, [line_flex.welcome()])
 
     async def on_members_left(self, c: Ctx) -> None:
         gone = {self.d.ids.user(m["userId"]) for m in c.ev.get("left", {}).get("members", []) if m.get("userId")}
@@ -213,12 +265,12 @@ class GroupBot:
             return None
         if state == "pending" and c.now - group["invited_at"] > self.s.activation_window_hours * 3600:
             await self.d.store.set("groups", c.ghash, dict(self._touch(group, c.now), state="expired"))
-            await self.d.reply(c.ev, [line_flex.plain(texts.PENDING_TIMEOUT)])
+            await self._say(c, [line_flex.plain(texts.PENDING_TIMEOUT)])
             await self._leave(c)
             return None
         if state == "active" and c.now > group.get("active_until", 0):
             await self._txn(c.ghash, lambda docs: ([dict(self._touch(docs[0], c.now), state="expired"), None], None))
-            await self.d.reply(c.ev, [line_flex.plain(texts.ACTIVE_EXPIRED)])
+            await self._say(c, [line_flex.plain(texts.ACTIVE_EXPIRED)])
             await self._leave(c)
             return None
         return group, plan
@@ -238,7 +290,7 @@ class GroupBot:
         group, plan = gated
         if group["state"] == "pending":
             if trigger:
-                await self.d.reply(c.ev, [line_flex.welcome()])
+                await self._say(c, [line_flex.welcome()])
             return
         if not c.uhash:
             return
@@ -247,6 +299,7 @@ class GroupBot:
             await self.announce_poll(c)
             return
         if stripped.startswith(POLL_ANSWERED):
+            await self.close_poll_if_everyone_answered(c)
             return
         if trigger and request.startswith("日程"):
             await self.start_poll(c, plan)
@@ -267,17 +320,17 @@ class GroupBot:
                 await self.join(c, None)
             elif trigger:
                 missing = [name for name, station in _station_rows(plan) if not station]
-                await self.d.reply(c.ev, [line_flex.plain(texts.gathering_status(missing))])
+                await self._say(c, [line_flex.plain(texts.gathering_status(missing))])
         elif phase == "searching":
             if trigger:
-                await self.d.reply(c.ev, [line_flex.plain(texts.SEARCHING)])
+                await self._say(c, [line_flex.plain(texts.SEARCHING)])
         elif phase == "voting":
             if trigger and request and _is_suggestion(request):
                 await self.suggest(c, plan, request.removeprefix("提案").strip())
             elif trigger and request:
                 await self.refine(c, plan["nonce"], request=request)
             elif trigger:
-                await self.d.reply(c.ev, [line_flex.plain(texts.VOTING_HINT)])
+                await self._say(c, [line_flex.plain(texts.VOTING_HINT)])
 
     async def on_participant_message(self, c: Ctx, text: str) -> None:
         station = await self.d.stations.from_text(text)
@@ -312,9 +365,9 @@ class GroupBot:
         if outcome == "go":
             await self.search(c, plan["nonce"])
         elif outcome == "ready_card":
-            await self.d.reply(c.ev, [line_flex.ready_check(plan["nonce"], _station_rows(plan), hint_text(plan.get("hint")))])
+            await self._say(c, [line_flex.ready_check(plan["nonce"], _station_rows(plan), _when(plan))])
         elif outcome == "when":
-            await self.d.reply(c.ev, [line_flex.plain(texts.when_noted(hint_text(plan["hint"])))])
+            await self._say(c, [line_flex.plain(texts.when_noted(hint_text(plan["hint"])))])
 
     # ---- buttons --------------------------------------------------------------------------------
 
@@ -322,7 +375,7 @@ class GroupBot:
         data = {k: v[0] for k, v in parse_qs(c.ev.get("postback", {}).get("data", "")).items()}
         action, nonce = data.get("a"), data.get("p")
         if not c.user_id:
-            await self.d.reply(c.ev, [line_flex.plain(texts.USE_PHONE_APP)])
+            await self._say(c, [line_flex.plain(texts.USE_PHONE_APP)])
             return
         gated = await self._gate(c)
         if gated is None:
@@ -333,12 +386,12 @@ class GroupBot:
                 await self.activate(c)
             return
         if action == "activate":
-            await self.d.reply(c.ev, [line_flex.plain(texts.ALREADY_ACTIVE)])
+            await self._say(c, [line_flex.plain(texts.ALREADY_ACTIVE)])
         elif action == "start":
             if plan is None:
                 await self.start_plan(c, group, "")
             else:
-                await self.d.reply(c.ev, [line_flex.plain(texts.gathering_status([]) if plan["phase"] in ("gathering", "ready")
+                await self._say(c, [line_flex.plain(texts.gathering_status([]) if plan["phase"] in ("gathering", "ready")
                                                           else texts.VOTING_HINT)])
         elif action == "join":
             await self.join(c, nonce)
@@ -349,7 +402,7 @@ class GroupBot:
         elif action == "force":
             await self.force(c, nonce, plan)
         elif action == "fix":
-            await self.d.reply(c.ev, [line_flex.plain(texts.FIX_STATION)])
+            await self._say(c, [line_flex.plain(texts.FIX_STATION)])
         elif action == "vote":
             await self.vote(c, nonce, data.get("v"), forced=False)
         elif action == "close":
@@ -361,7 +414,7 @@ class GroupBot:
         elif action == "results":
             await self.results(c, nonce)
         elif action == "suggest":
-            await self.d.reply(c.ev, [line_flex.plain(texts.SUGGEST_HOW)])
+            await self._say(c, [line_flex.plain(texts.SUGGEST_HOW)])
         elif action == "poll":
             await self.start_poll(c, plan)
         elif action == "pollres":
@@ -375,7 +428,7 @@ class GroupBot:
         is_admin = bool(self.s.line_admin_user_id) and c.user_id == self.s.line_admin_user_id
         user = await self.d.store.get("users", c.uhash)
         if not is_admin and not (user and user.get("verified")):
-            await self.d.reply(c.ev, [line_flex.plain(texts.NOT_VERIFIED)])
+            await self._say(c, [line_flex.plain(texts.NOT_VERIFIED)])
             return
         now, s = c.now, self.s
 
@@ -393,12 +446,12 @@ class GroupBot:
 
         outcome, group = await self.d.store.transact([("groups", c.ghash), ("users", c.uhash)], fn)
         if outcome == "ok":
-            await self.d.reply(c.ev, [line_flex.activated(s.plans_per_group - group.get("plans_used", 0),
+            await self._say(c, [line_flex.activated(s.plans_per_group - group.get("plans_used", 0),
                                                           self._searches_left(group), _day(group["active_until"]))])
         elif outcome == "user_limit":
-            await self.d.reply(c.ev, [line_flex.plain(texts.USER_GROUP_LIMIT)])
+            await self._say(c, [line_flex.plain(texts.USER_GROUP_LIMIT)])
         else:
-            await self.d.reply(c.ev, [line_flex.plain(texts.ALREADY_ACTIVE)])
+            await self._say(c, [line_flex.plain(texts.ALREADY_ACTIVE)])
 
     # ---- phase 2–3: gathering and ready check ---------------------------------------------------
 
@@ -410,9 +463,19 @@ class GroupBot:
         return (name or "メンバー")[:20]
 
     async def start_plan(self, c: Ctx, group: dict[str, Any], request: str) -> None:
+        poll = await self.d.store.get("polls", c.ghash)
+        if poll and not date_hint(request or "").get("day"):
+            ranked = polls.tally(poll) if poll.get("status") in ("open", "closed") else []
+            best = poll.get("best") or (ranked[0][0] if ranked and ranked[0][1] + ranked[0][2] > 0 else None)
+            if best:
+                if poll.get("status") != "closed":
+                    await self.d.store.set("polls", c.ghash, dict(poll, status="closed", best=best))
+                await self.plan_from_poll(c, group, None, poll["nonce"],
+                                          lead=texts.from_poll(polls.date_label(best)))
+                return
         if self._used_up(group):
             await self.d.store.set("groups", c.ghash, dict(self._touch(group, c.now), state="done"))
-            await self.d.reply(c.ev, [line_flex.plain(texts.SEARCHES_USED_UP)])
+            await self._say(c, [line_flex.plain(texts.SEARCHES_USED_UP)])
             await self._leave(c)
             return
         name = await self._name(c)
@@ -442,9 +505,9 @@ class GroupBot:
 
         plan = await self._txn(c.ghash, fn)
         if plan == "exists":
-            await self.d.reply(c.ev, [line_flex.plain(texts.gathering_status([]))])
+            await self._say(c, [line_flex.plain(texts.gathering_status([]))])
         elif plan:
-            await self.d.reply(c.ev, [line_flex.gathering(plan["nonce"], s.max_participants)])
+            await self._say(c, [line_flex.gathering(plan["nonce"], s.max_participants)])
 
     async def join(self, c: Ctx, nonce: Optional[str]) -> None:
         name = await self._name(c)
@@ -479,14 +542,13 @@ class GroupBot:
         outcome = await self._txn(c.ghash, fn)
         outcome, joined_plan = outcome if isinstance(outcome, tuple) else (outcome, None)
         if outcome == "ready_card":
-            await self.d.reply(c.ev, [line_flex.ready_check(joined_plan["nonce"], _station_rows(joined_plan),
-                                                            hint_text(joined_plan.get("hint")))])
+            await self._say(c, [line_flex.ready_check(joined_plan["nonce"], _station_rows(joined_plan), _when(joined_plan))])
         elif outcome == "go":
             await self.search(c, joined_plan["nonce"])
         elif outcome == "stale":
-            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            await self._say(c, [line_flex.plain(texts.STALE_BUTTON)])
         elif outcome == "full":
-            await self.d.reply(c.ev, [line_flex.plain(texts.full(limit))])
+            await self._say(c, [line_flex.plain(texts.full(limit))])
 
     async def pass_plan(self, c: Ctx, nonce: Optional[str]) -> None:
         now = c.now
@@ -515,9 +577,9 @@ class GroupBot:
 
         outcome, plan = await self._txn(c.ghash, fn)
         if outcome == "stale":
-            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            await self._say(c, [line_flex.plain(texts.STALE_BUTTON)])
         elif outcome == "ready_card":
-            await self.d.reply(c.ev, [line_flex.ready_check(plan["nonce"], _station_rows(plan), hint_text(plan.get("hint")))])
+            await self._say(c, [line_flex.ready_check(plan["nonce"], _station_rows(plan), _when(plan))])
 
     async def ready(self, c: Ctx, nonce: Optional[str]) -> None:
         def fn(docs):
@@ -533,19 +595,19 @@ class GroupBot:
 
         outcome = await self._txn(c.ghash, fn)
         if outcome == "stale":
-            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            await self._say(c, [line_flex.plain(texts.STALE_BUTTON)])
         elif outcome == "go":
             await self.search(c, nonce)
 
     async def force(self, c: Ctx, nonce: Optional[str], plan: Optional[dict[str, Any]]) -> None:
         if not plan or plan["nonce"] != nonce or plan["phase"] not in ("gathering", "ready", "searching"):
-            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            await self._say(c, [line_flex.plain(texts.STALE_BUTTON)])
             return
         if c.uhash != plan["organizer"]:
-            await self.d.reply(c.ev, [line_flex.plain(texts.organizer_only(plan["organizer_name"]))])
+            await self._say(c, [line_flex.plain(texts.organizer_only(plan["organizer_name"]))])
             return
         if sum(1 for p in plan["participants"].values() if p.get("station")) < 2:
-            await self.d.reply(c.ev, [line_flex.plain(texts.NEED_TWO)])
+            await self._say(c, [line_flex.plain(texts.NEED_TWO)])
             return
         await self.search(c, nonce)
 
@@ -585,11 +647,11 @@ class GroupBot:
 
     async def _search_refused(self, c: Ctx, outcome: str) -> None:
         message = {"stale": texts.STALE_BUTTON, "busy": texts.SEARCHING, "limit": texts.SEARCHES_USED_UP}[outcome]
-        await self.d.reply(c.ev, [line_flex.plain(message)])
+        await self._say(c, [line_flex.plain(message)])
 
-    async def search(self, c: Ctx, nonce: str) -> None:
+    async def search(self, c: Ctx, nonce: str, lead: Optional[str] = None) -> None:
         if not await self.d.usage.take("searches"):
-            await self.d.reply(c.ev, [line_flex.plain(texts.DAILY_LIMIT)])
+            await self._say(c, [line_flex.plain(texts.DAILY_LIMIT)])
             return
         outcome, group, snap = await self._claim_search(c, nonce, ("gathering", "ready"))
         if outcome != "ok":
@@ -611,12 +673,12 @@ class GroupBot:
                 raise SearchProblem(texts.NO_VENUES)
         except SearchProblem as e:
             await self._revert_search(c, nonce, "ready" if _all_have_stations(snap) else "gathering")
-            await self.d.reply(c.ev, [line_flex.plain(e.message)])
+            await self._say(c, [line_flex.plain(e.message)])
             return
         except Exception:
             log.exception("search failed")
             await self._revert_search(c, nonce, "ready" if _all_have_stations(snap) else "gathering")
-            await self.d.reply(c.ev, [line_flex.plain(texts.SEARCH_FAILED)])
+            await self._say(c, [line_flex.plain(texts.SEARCH_FAILED)])
             return
 
         hub_rows = [(p["name"], p["station"]["name"], hub["minutes"].get(p["station"]["name"], 0)) for p in people]
@@ -639,8 +701,8 @@ class GroupBot:
         if plan is None:
             return
         carousel = await self._carousel(plan, self._searches_left(group))
-        summary = " / ".join(x for x in (schedule_agent.details_text(details), _taste_text(taste)) if x)
-        await self.d.reply(c.ev, [line_flex.hub_card(hub, hub_rows, summary), carousel])
+        summary = " / ".join(x for x in (_when(plan), _taste_text(taste)) if x)
+        await self._say(c, ([line_flex.plain(lead)] if lead else []) + [line_flex.hub_card(hub, hub_rows, summary), carousel])
 
     async def _choose_picks(self, plan: dict[str, Any], station: dict[str, Any], details: dict[str, Any],
                             pax: int, exclude: set[str]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -698,14 +760,14 @@ class GroupBot:
 
         outcome, group, plan = await self._txn(c.ghash, fn)
         if outcome == "ok":
-            await self.d.reply(c.ev, [await self._carousel(plan, self._searches_left(group))])
+            await self._say(c, [await self._carousel(plan, self._searches_left(group))])
         else:
-            await self.d.reply(c.ev, [line_flex.plain(texts.NO_MORE if outcome == "none" else texts.STALE_BUTTON)])
+            await self._say(c, [line_flex.plain(texts.NO_MORE if outcome == "none" else texts.STALE_BUTTON)])
 
     async def refine(self, c: Ctx, nonce: Optional[str], kind: Optional[str] = None,
                      request: Optional[str] = None) -> None:
         if not await self.d.usage.take("searches"):
-            await self.d.reply(c.ev, [line_flex.plain(texts.DAILY_LIMIT)])
+            await self._say(c, [line_flex.plain(texts.DAILY_LIMIT)])
             return
         outcome, group, snap = await self._claim_search(c, nonce, ("voting",))
         if outcome != "ok":
@@ -732,12 +794,12 @@ class GroupBot:
                 raise SearchProblem(texts.NO_VENUES)
         except SearchProblem as e:
             await self._revert_search(c, nonce, "voting")
-            await self.d.reply(c.ev, [line_flex.plain(e.message)])
+            await self._say(c, [line_flex.plain(e.message)])
             return
         except Exception:
             log.exception("refine failed")
             await self._revert_search(c, nonce, "voting")
-            await self.d.reply(c.ev, [line_flex.plain(texts.SEARCH_FAILED)])
+            await self._say(c, [line_flex.plain(texts.SEARCH_FAILED)])
             return
 
         def finish(docs):
@@ -754,7 +816,7 @@ class GroupBot:
         if plan is None:
             return
         summary = "・".join((details.get("preferences") or [])[-3:])
-        await self.d.reply(c.ev, [line_flex.plain(texts.refined(summary)),
+        await self._say(c, [line_flex.plain(texts.refined(summary)),
                                   await self._carousel(plan, self._searches_left(group))])
 
     def _winner(self, plan: dict[str, Any], forced: bool) -> Optional[str]:
@@ -788,24 +850,24 @@ class GroupBot:
     async def results(self, c: Ctx, nonce: Optional[str]) -> None:
         plan = await self.d.store.get("plans", c.ghash)
         if not plan or plan["nonce"] != nonce or plan["phase"] != "voting":
-            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            await self._say(c, [line_flex.plain(texts.STALE_BUTTON)])
             return
         counts = _all_votes(plan)
         shops = await self._shop_map(plan, list(counts))
         people = plan["participants"]
         missing = [p["name"] for p in people.values() if not p.get("votes")]
         leader = await self._leader(plan)
-        await self.d.reply(c.ev, [line_flex.results_card(
+        await self._say(c, [line_flex.results_card(
             self._result_rows(plan, shops), len(people) - len(missing), len(people), missing,
             f"いまの1位：{leader}" if leader else "まだ投票がありません", nonce)])
 
     async def vote(self, c: Ctx, nonce: Optional[str], shop_id: Optional[str], forced: bool) -> None:
         plan_now = await self.d.store.get("plans", c.ghash)
         if not plan_now or plan_now["nonce"] != nonce or plan_now["phase"] != "voting":
-            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            await self._say(c, [line_flex.plain(texts.STALE_BUTTON)])
             return
         if forced and c.uhash != plan_now["organizer"]:
-            await self.d.reply(c.ev, [line_flex.plain(texts.organizer_only(plan_now["organizer_name"]))])
+            await self._say(c, [line_flex.plain(texts.organizer_only(plan_now["organizer_name"]))])
             return
         shown = [p["id"] for p in plan_now["picks"][:(plan_now["page"] + 1) * PAGE]] + \
             [sg["id"] for sg in plan_now.get("suggestions", [])]
@@ -832,9 +894,10 @@ class GroupBot:
                 return [KEEP, plan], ("noted", None, None)
             pick = next((p for p in plan["picks"] if p["id"] == winner), None) or \
                 next(sg for sg in plan.get("suggestions", []) if sg["id"] == winner)
+            day, time, meal = _when_parts(plan)
             decision = {"shop_id": winner, "pick": pick, "when": _when(plan),
-                        "day": (plan.get("details") or {}).get("day") or (plan.get("hint") or {}).get("day"),
-                        "time": (plan.get("details") or {}).get("time") or (plan.get("hint") or {}).get("time"),
+                        "day": day_label(day, dt.datetime.fromtimestamp(now, JST).date()) if day else None,
+                        "time": time, "meal": meal,
                         "pax": len(plan["participants"]), "organizer_name": plan["organizer_name"],
                         "hub_name": plan["hub"]["name"], "rows": self._result_rows(plan, shops),
                         "voters": sum(1 for p in plan["participants"].values() if p.get("votes")),
@@ -845,9 +908,9 @@ class GroupBot:
 
         outcome, decision, _ = await self._txn(c.ghash, fn)
         if outcome == "stale":
-            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            await self._say(c, [line_flex.plain(texts.STALE_BUTTON)])
         elif outcome == "not_participant":
-            await self.d.reply(c.ev, [line_flex.plain(texts.NOT_PARTICIPANT)])
+            await self._say(c, [line_flex.plain(texts.NOT_PARTICIPANT)])
         elif outcome == "decided":
             await self._announce(c, decision, shops)
 
@@ -855,19 +918,19 @@ class GroupBot:
 
     async def suggest(self, c: Ctx, plan: dict[str, Any], request: str) -> None:
         if c.uhash not in plan["participants"]:
-            await self.d.reply(c.ev, [line_flex.plain(texts.NOT_PARTICIPANT)])
+            await self._say(c, [line_flex.plain(texts.NOT_PARTICIPANT)])
             return
         if len(plan.get("suggestions", [])) >= MAX_SUGGESTIONS:
-            await self.d.reply(c.ev, [line_flex.plain(texts.SUGGEST_FULL)])
+            await self._say(c, [line_flex.plain(texts.SUGGEST_FULL)])
             return
         try:
             shop = await resolve_suggestion(self.d, request, plan["hub"])
         except SuggestionError as e:
-            await self.d.reply(c.ev, [line_flex.plain(e.message)])
+            await self._say(c, [line_flex.plain(e.message)])
             return
         except Exception:
             log.exception("suggestion failed")
-            await self.d.reply(c.ev, [line_flex.plain(texts.SUGGEST_FAILED)])
+            await self._say(c, [line_flex.plain(texts.SUGGEST_FAILED)])
             return
         name = plan["participants"][c.uhash]["name"]
         walk = spot_agent.walk_minutes(shop, plan["hub"]) if plan["hub"].get("lat") else None
@@ -892,13 +955,13 @@ class GroupBot:
         outcome, result = await self._txn(c.ghash, fn)
         if outcome == "ok":
             current, entry = result
-            await self.d.reply(c.ev, [line_flex.suggestion_card(nonce, _labels(current)[entry["id"]], shop, entry)])
+            await self._say(c, [line_flex.suggestion_card(nonce, _labels(current)[entry["id"]], shop, entry)])
         elif outcome == "dup":
-            await self.d.reply(c.ev, [line_flex.plain(texts.SUGGEST_DUP)])
+            await self._say(c, [line_flex.plain(texts.SUGGEST_DUP)])
         elif outcome == "full":
-            await self.d.reply(c.ev, [line_flex.plain(texts.SUGGEST_FULL)])
+            await self._say(c, [line_flex.plain(texts.SUGGEST_FULL)])
         else:
-            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            await self._say(c, [line_flex.plain(texts.STALE_BUTTON)])
 
     # ---- date poll -----------------------------------------------------------------------------
 
@@ -910,18 +973,18 @@ class GroupBot:
 
     async def start_poll(self, c: Ctx, plan: Optional[dict[str, Any]]) -> None:
         if plan is not None:
-            await self.d.reply(c.ev, [line_flex.plain(texts.POLL_PLAN_RUNNING)])
+            await self._say(c, [line_flex.plain(texts.POLL_PLAN_RUNNING)])
             return
         if not self.s.liff_id:
-            await self.d.reply(c.ev, [line_flex.plain(texts.POLL_UNAVAILABLE)])
+            await self._say(c, [line_flex.plain(texts.POLL_UNAVAILABLE)])
             return
         name = await self._name(c)
         poll = await polls.start(self.d.store, c.ghash, c.uhash, name, c.now)
         token = self._poll_token(c.ghash, poll["nonce"])
         if poll["status"] == "open":
-            await self.d.reply(c.ev, [self._poll_card(poll, token)])
+            await self._say(c, [self._poll_card(poll, token)])
         else:
-            await self.d.reply(c.ev, [line_flex.poll_start(self._liff_url("calendar", token), poll["organizer_name"])])
+            await self._say(c, [line_flex.poll_start(self._liff_url("calendar", token), poll["organizer_name"])])
 
     def _poll_card(self, poll: dict[str, Any], token: str) -> dict:
         return line_flex.poll_card(poll["nonce"], [polls.date_label(d) for d in poll["dates"]],
@@ -938,40 +1001,53 @@ class GroupBot:
 
         poll = await self.d.store.transact([("polls", c.ghash)], fn)
         if poll:
-            await self.d.reply(c.ev, [self._poll_card(poll, self._poll_token(c.ghash, poll["nonce"]))])
+            await self._say(c, [self._poll_card(poll, self._poll_token(c.ghash, poll["nonce"]))])
 
-    async def poll_results(self, c: Ctx, nonce: Optional[str], close: bool) -> None:
+    async def poll_results(self, c: Ctx, nonce: Optional[str], close: bool, auto: bool = False) -> None:
         poll = await self.d.store.get("polls", c.ghash)
         if not poll or poll.get("nonce") != nonce or poll.get("status") not in ("open", "closed"):
-            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            await self._say(c, [line_flex.plain(texts.STALE_BUTTON)])
             return
-        if close and c.uhash != poll["organizer"]:
-            await self.d.reply(c.ev, [line_flex.plain(texts.organizer_only(poll["organizer_name"]))])
+        if close and not auto and c.uhash != poll["organizer"]:
+            await self._say(c, [line_flex.plain(texts.organizer_only(poll["organizer_name"]))])
             return
         ranked = polls.tally(poll)
         best = ranked[0][0] if ranked and (ranked[0][1] + ranked[0][2]) > 0 else None
         if close:
             if not best:
-                await self.d.reply(c.ev, [line_flex.plain(texts.POLL_NO_ANSWERS)])
+                await self._say(c, [line_flex.plain(texts.POLL_NO_ANSWERS)])
                 return
             await self.d.store.set("polls", c.ghash, dict(poll, status="closed", best=best))
         yes, maybe = polls.people_for(poll, best) if best else ([], [])
         runner = next((polls.date_label(d) for d, o, t, x in ranked[1:2] if o + t > 0), None)
-        await self.d.reply(c.ev, [line_flex.poll_result(
+        result = line_flex.poll_result(
             nonce, polls.date_label(best) if best else None, [n for _, n in yes], [n for _, n in maybe], runner,
-            [(polls.date_label(d), o, t, x) for d, o, t, x in ranked], closed=close)])
+            [(polls.date_label(d), o, t, x) for d, o, t, x in ranked], closed=close)
+        await self._say(c, ([line_flex.plain(texts.POLL_ALL_ANSWERED)] if auto else []) + [result])
+
+    async def close_poll_if_everyone_answered(self, c: Ctx) -> None:
+        poll = await self.d.store.get("polls", c.ghash)
+        if not poll or poll.get("status") != "open":
+            return
+        try:
+            members = await self.d.line.member_count(c.kind, c.chat_id)
+        except Exception:
+            members = None
+        if not members or len(poll.get("answers", {})) < members:
+            return
+        await self.poll_results(c, poll["nonce"], close=True, auto=True)
 
     async def plan_from_poll(self, c: Ctx, group: dict[str, Any], plan: Optional[dict[str, Any]],
-                             nonce: Optional[str]) -> None:
+                             nonce: Optional[str], lead: Optional[str] = None) -> None:
         poll = await self.d.store.get("polls", c.ghash)
         if not poll or poll.get("nonce") != nonce or poll.get("status") != "closed" or not poll.get("best"):
-            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            await self._say(c, [line_flex.plain(texts.STALE_BUTTON)])
             return
         if plan is not None:
-            await self.d.reply(c.ev, [line_flex.plain(texts.POLL_PLAN_RUNNING)])
+            await self._say(c, [line_flex.plain(texts.POLL_PLAN_RUNNING)])
             return
         if self._used_up(group):
-            await self.d.reply(c.ev, [line_flex.plain(texts.SEARCHES_USED_UP)])
+            await self._say(c, [line_flex.plain(texts.SEARCHES_USED_UP)])
             return
         yes, maybe = polls.people_for(poll, poll["best"])
         people = (yes + maybe)[:self.s.max_participants]
@@ -1007,15 +1083,16 @@ class GroupBot:
 
         new_plan = await self._txn(c.ghash, fn)
         if not new_plan:
-            await self.d.reply(c.ev, [line_flex.plain(texts.STALE_BUTTON)])
+            await self._say(c, [line_flex.plain(texts.STALE_BUTTON)])
             return
         await self.d.store.delete("polls", c.ghash)     # the answers have done their job
         if _all_have_stations(new_plan):
-            await self.search(c, new_plan["nonce"])
+            await self.search(c, new_plan["nonce"], lead=lead)
             return
         missing = [p["name"] for p in _people(new_plan) if not p.get("station")]
-        await self.d.reply(c.ev, [line_flex.gathering(new_plan["nonce"], s.max_participants),
-                                  line_flex.plain(texts.need_stations(missing))])
+        await self._say(c, ([line_flex.plain(lead)] if lead else []) +
+                        [line_flex.gathering(new_plan["nonce"], s.max_participants),
+                         line_flex.plain(texts.need_stations(missing))])
 
     # ---- phase 6: decided -----------------------------------------------------------------------
 
@@ -1034,12 +1111,12 @@ class GroupBot:
                 or known)
             agent_url = await self._agent_link(decision, shop)
             script = voice_agent.call_script(shop["name"], decision.get("day"), decision.get("time"),
-                                             decision["pax"], decision["organizer_name"])
+                                             decision["pax"], decision["organizer_name"], decision.get("meal"))
             messages += [line_flex.decision_card(shop, decision["when"], decision["pax"],
                                                  decision["pick"].get("walk_min"), decision["hub_name"], agent_url),
                          line_flex.script_card(script, phone, shop.get("url"))]
         messages.append(line_flex.plain(texts.GOODBYE))
-        await self.d.reply(c.ev, messages)
+        await self._say(c, messages)
         await self._leave(c)
 
     async def _agent_link(self, decision: dict[str, Any], shop: dict[str, Any]) -> Optional[str]:

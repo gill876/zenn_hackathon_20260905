@@ -198,3 +198,11 @@ def resolve_day(day: Optional[str], today: date) -> Optional[date]:
         monday = today - _dt.timedelta(days=today.weekday())
         return monday + _dt.timedelta(days=12)
     return None
+
+
+def day_label(day: Optional[str], today: date) -> Optional[str]:
+    """「11/21」 → 「11/21(土)」, 「来週土曜」 → 「10/24(土)」; leaves anything it can't place as is."""
+    if not day:
+        return None
+    d = resolve_day(day, today)
+    return f"{d.month}/{d.day}({_WEEKDAYS[d.weekday()]})" if d else day

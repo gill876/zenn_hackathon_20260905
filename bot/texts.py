@@ -77,3 +77,9 @@ POLL_NO_ANSWERS = "まだ回答がありません。みんなに「回答する�
 
 def need_stations(missing: list[str]) -> str:
     return "出発駅がわからない人がいます：" + "、".join(missing) + "\n「〇〇から」と送ってください。そろったらすぐにお店を探します。"
+
+POLL_ALL_ANSWERED = "全員が回答したので、日程調整を締め切りました。"
+
+
+def from_poll(date_label: str) -> str:
+    return f"日程調整の結果（{date_label}）でプランを立てます。"

@@ -135,3 +135,61 @@ async def test_participants_with_profiles_need_no_station_message(deps):
     gathering = await send(deps, group_message("@AsobiAgent 土曜ランチ", SATO, mention_self=True))
     ready = await send(deps, group_postback(find_postback(gathering, "join"), SUZUKI))
     assert "全員の出発駅がそろいました" in ready[0]["altText"]       # both stations came from profiles
+
+
+async def _poll_with_answers(deps, client, answers):
+    await activated_group(deps)
+    start = await send(deps, group_message("@AsobiAgent 日程調整", SATO, mention_self=True))
+    token = re.search(r"/calendar\?t=([^\"'\s]+)", str(start)).group(1)
+    client.post("/api/liff/poll/dates", headers=auth(SATO, "佐藤"),
+                json={"t": token, "dates": ["2026-11-14", "2026-11-21"], "slot": "lunch"})
+    await send(deps, group_message("日程調整を作りました（2日）", SATO))
+    names = {SATO: "佐藤", SUZUKI: "鈴木"}
+    for user, marks in answers.items():
+        client.post("/api/liff/poll/answer", headers=auth(user, names[user]), json={"t": token, "marks": marks})
+    return token
+
+
+async def test_plan_button_uses_the_open_poll(deps):
+    client = TestClient(create_app(deps))
+    save_profile(client, SATO, "佐藤", ["yakiniku"], [], "23368")
+    save_profile(client, SUZUKI, "鈴木", ["cafe"], [], "22637")
+    await _poll_with_answers(deps, client, {SATO: {"2026-11-14": "x", "2026-11-21": "o"},
+                                            SUZUKI: {"2026-11-14": "t", "2026-11-21": "o"}})
+    out = await send(deps, group_postback("a=start", SATO))     # nobody closed the poll first
+    assert out[0]["text"] == texts.from_poll("11/21(土)")
+    assert "集合駅は" in out[1]["altText"]
+    plan = await deps.store.get("plans", deps.ids.chat("C1"))
+    assert plan["hint"] == {"day": "11/21", "meal": "lunch"} and len(plan["participants"]) == 2
+    a = plan["picks"][0]["id"]
+    await send(deps, group_postback(f"a=vote&p={plan['nonce']}&v={a}", SATO))
+    done = await send(deps, group_postback(f"a=vote&p={plan['nonce']}&v={a}", SUZUKI))
+    decision, script = str(done[1]), str(done[2])
+    assert "11/21(土) ランチ" in decision
+    assert "11/21(土)のランチに、2名で" in script
+
+
+async def test_poll_closes_when_everyone_answered(deps):
+    client = TestClient(create_app(deps))
+    deps.line.members = 2
+    token = await _poll_with_answers(deps, client, {SATO: {"2026-11-14": "o", "2026-11-21": "o"}})
+    assert await send(deps, group_message("日程に回答しました ✅", SATO)) == []          # 1 of 2
+    client.post("/api/liff/poll/answer", headers=auth(SUZUKI, "鈴木"),
+                json={"t": token, "marks": {"2026-11-14": "o", "2026-11-21": "x"}})
+    out = await send(deps, group_message("日程に回答しました ✅", SUZUKI))
+    assert out[0]["text"] == texts.POLL_ALL_ANSWERED
+    assert "11/14(土) に決まりました" in out[1]["altText"]
+    labels = [i["action"]["label"] for i in out[-1]["quickReply"]["items"]]
+    assert labels == ["🍽 このメンバーで立てる"]
+
+
+async def test_quick_replies_follow_the_flow(deps):
+    def labels(messages):
+        return [i["action"]["label"] for i in messages[-1].get("quickReply", {}).get("items", [])]
+    from tests.conftest import join
+    assert labels(await send(deps, join("C1"))) == ["有効化する"]
+    from tests.test_group_flow import verified_user
+    await verified_user(deps, SATO)
+    assert labels(await send(deps, group_postback("a=activate", SATO))) == ["📅 日程を決める", "🍽 プランを立てる"]
+    gathering = await send(deps, group_message("@AsobiAgent ランチ", SATO, mention_self=True))
+    assert labels(gathering) == ["参加する", "今回はパス", "もう探して（幹事）"]
