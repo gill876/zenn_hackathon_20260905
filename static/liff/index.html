@@ -217,7 +217,7 @@ function summary() {
       h("span", {class: "k"}, "出発駅"), h("span", {}, P.station ? P.station.name : "未設定")),
     h("p", {class: "sub"}, "グループでAsobiAgentを呼ぶと、この内容が自動で使われます。今回だけ変えたいときは、グループで「今日は品川から」「和食がいい」のように送ってください。"),
     del);
-  bar(h("button", {class: "btn sec", onclick: () => liff.closeWindow()}, "閉じる"), h("button", {class: "btn", onclick: round1}, "編集する"));
+  bar(h("button", {class: "btn sec", onclick: round1}, "編集する"), h("button", {class: "btn", onclick: () => liff.closeWindow()}, "閉じる"));
 }
 
 // ---------- calendar (organizer picks candidate dates) ----------
@@ -285,9 +285,11 @@ function pollView(p) {
         h("button", {class: marks[d.iso] === k ? "on-" + k : "", onclick: () => { marks[d.iso] = k; draw(); }}, sym[k])))))) : null;
     render(h("h1", {}, "日程調整"), h("p", {class: "sub"}, `時間帯：${p.slot_label}　${p.status === "open" ? "○ 行ける ・ △ たぶん ・ × むり" : "締め切りました"}`),
       h("div", {class: "table"}, h("table", {}, h("thead", {}, head), h("tbody", {}, ...body))), mine);
-    if (p.status === "open") {
+    const saved = Object.keys(p.mine).length > 0 && p.dates.every(d => marks[d.iso] === p.mine[d.iso]);
+    if (p.status === "open" && !saved) {
       const answered = p.dates.every(d => marks[d.iso]);
-      const send = h("button", {class: "btn", disabled: !answered}, answered ? "回答する" : "全部の日に○△×をつけてください");
+      const label = Object.keys(p.mine).length ? "回答を更新する" : "回答する";
+      const send = h("button", {class: "btn", disabled: !answered}, answered ? label : "全部の日に○△×をつけてください");
       send.addEventListener("click", async () => {
         send.disabled = true;
         try { const r = await api("/api/liff/poll/answer", {method: "POST", body: JSON.stringify({t, marks})});
