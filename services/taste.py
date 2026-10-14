@@ -70,7 +70,14 @@ def group_taste(people: list[dict[str, Any]]) -> dict[str, Any]:
     sub_likes: dict[str, Counter] = {}
     moods = Counter()
     tops: list[Optional[str]] = []
-    for person in people:
+    counted: dict[str, set[int]] = {}   # who already likes each kind, by position: two people can share a name
+
+    def add_liker(kind: str, i: int, name: str) -> None:
+        if i not in counted.setdefault(kind, set()):
+            counted[kind].add(i)
+            likers.setdefault(kind, []).append(name)
+
+    for i, person in enumerate(people):
         prof = person.get("profile") or {}
         for d in prof.get("dislikes", []):
             (dropped_subs if "/" in d else dropped_kinds).add(d)
@@ -78,16 +85,12 @@ def group_taste(people: list[dict[str, Any]]) -> dict[str, Any]:
             if "/" in like:
                 kind = like.split("/")[0]
                 sub_likes.setdefault(kind, Counter())[like] += 1
-                likers.setdefault(kind, [])
-                if person["name"] not in likers[kind]:
-                    likers[kind].append(person["name"])
+                add_liker(kind, i, person["name"])
             elif like in BY_ID:
                 if BY_ID[like].get("mood"):
                     moods[BY_ID[like]["mood"]] += 1
                 else:
-                    likers.setdefault(like, [])
-                    if person["name"] not in likers[like]:
-                        likers[like].append(person["name"])
+                    add_liker(like, i, person["name"])
     kinds = [k for k in likers if k not in dropped_kinds and k in FOOD_KINDS]
     kinds.sort(key=lambda k: (-len(likers[k]), FOOD_KINDS.index(k)))
     for person in people:

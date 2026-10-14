@@ -1,4 +1,5 @@
-"""The judges' shared code (LINE and the web demo), a judge planning alone, and the Vertex → GMI fallback."""
+"""The judges' shared code (LINE and the web demo), a judge planning alone, the Vertex → GMI fallback, and
+Gemini's reasons in the profile flow."""
 
 from types import SimpleNamespace
 
@@ -246,3 +247,79 @@ def test_providers_come_from_settings():
                                                      gmi_model="m"))
     assert [p.name for p in only_gmi.providers] == ["gmi"]
     assert LLMClient.from_settings(make_settings()).providers == []
+
+
+# ---- Gemini writes the reasons in the profile flow ------------------------------------------------------
+
+def recording_provider(answer, seen):
+    async def create(**kwargs):
+        seen.append(kwargs["messages"][-1]["content"])
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=answer))])
+    return Provider("vertex", SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create))), "m")
+
+
+def reasons_answer(ids, text="個室ありで焼肉好きに◎"):
+    import json
+    return json.dumps({"reasons": [{"id": i, "text": text} for i in ids]}, ensure_ascii=False)
+
+
+async def test_profile_places_get_gemini_reasons_without_names(deps):
+    client = TestClient(create_app(deps))
+    save_profile(client, SATO, "佐藤", ["yakiniku"], [], "23368")
+    save_profile(client, SUZUKI, "鈴木", ["yakiniku", "cafe"], [], "22637")
+    seen = []
+    deps.llm = LLMClient([recording_provider(reasons_answer([f"J00000000{i}" for i in range(1, 13)]), seen)])
+    from tests.test_group_flow import activated_group
+    await activated_group(deps)
+    gathering = await send(deps, group_message("@AsobiAgent 土曜ランチ", SATO, mention_self=True))
+    ready = await send(deps, group_postback(find_postback(gathering, "join"), SUZUKI))
+    for user in (SATO, SUZUKI):
+        places = await send(deps, group_postback(find_postback(ready, "ready"), user))
+    plan = await deps.store.get("plans", deps.ids.chat("C1"))
+    ai = [p for p in plan["picks"] if p.get("ai_reason")]
+    assert ai and all("✨ 個室ありで焼肉好きに◎" in p["reason"] for p in ai)
+    assert "✨" in str(places[1])                                   # shown on the cards
+    reasons = [prompt for prompt in seen if "Places near the meeting station" in prompt]
+    assert len(reasons) == 1                                        # one call for the whole carousel
+    assert all("佐藤" not in prompt and "鈴木" not in prompt for prompt in seen)   # names never reach the model
+    assert '"焼肉・肉料理": 2' in reasons[0]                          # counts do
+
+
+async def test_unknown_ids_urls_and_long_text_are_dropped():
+    from agents.group_picks import explain
+    from tests.conftest import shop
+    import json
+    answer = json.dumps({"reasons": [
+        {"id": "J1", "text": "とても長い理由" * 20},
+        {"id": "J2", "text": "詳しくは https://example.com へ"},
+        {"id": "NOT-A-PICK", "text": "存在しない店"},
+        "not a dict",
+    ]}, ensure_ascii=False)
+    picks = [{"id": "J1", "kind": "cafe", "likers": [], "reason": "rule1"},
+             {"id": "J2", "kind": "cafe", "likers": [], "reason": "rule2"}]
+    facts = {"J1": shop(1, id="J1"), "J2": shop(2, id="J2")}
+    await explain(LLMClient([recording_provider(answer, [])]), picks, facts, {}, {"kinds": []}, 2)
+    assert picks[0]["reason"].startswith("✨ ") and len(picks[0]["reason"]) <= 2 + 34
+    assert picks[1]["reason"] == "rule2"                             # the URL answer was refused
+    assert all(p["id"] != "NOT-A-PICK" for p in picks)
+
+
+async def test_rule_reasons_stay_when_gemini_is_down_or_off():
+    from agents.group_picks import explain
+    from tests.conftest import shop
+    picks = [{"id": "J1", "kind": "cafe", "likers": ["佐藤"], "reason": "rule"}]
+    facts = {"J1": shop(1, id="J1")}
+    await explain(LLMClient([fake_provider("vertex", error=TimeoutError())]), picks, facts, {}, {"kinds": []}, 2)
+    await explain(LLMClient([]), picks, facts, {}, {"kinds": []}, 2)
+    await explain(None, picks, facts, {}, {"kinds": []}, 2)
+    assert picks[0]["reason"] == "rule" and "ai_reason" not in picks[0]
+
+
+def test_two_people_with_the_same_name_both_count():
+    from services.taste import group_taste
+    taste = group_taste([{"name": "メンバー", "profile": {"likes": ["yakiniku"]}},
+                         {"name": "メンバー", "profile": {"likes": ["yakiniku", "yakiniku/steak"]}},
+                         {"name": "ゆうき", "profile": {"likes": ["cafe"]}}])
+    kinds = {k["id"]: k for k in taste["kinds"]}
+    assert len(kinds["yakiniku"]["likers"]) == 2 and len(kinds["cafe"]["likers"]) == 1
+    assert [k["id"] for k in taste["kinds"]][0] == "yakiniku"        # the most-liked kind leads

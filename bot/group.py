@@ -726,7 +726,7 @@ class GroupBot:
         taste = group_taste(people)
         if taste["has_profiles"]:
             picks = await group_picks(self.d.hotpepper, station, details, pax, taste, exclude=exclude,
-                                      featured=self.d.featured, timeout=self.d.timeout)
+                                      featured=self.d.featured, timeout=self.d.timeout, llm=self.d.llm)
         else:
             picks = await spot_agent.shortlist(self.d.llm, self.d.hotpepper, station, details, pax, exclude=exclude,
                                                featured=self.d.featured, timeout=self.d.timeout)

@@ -11,7 +11,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Optional
 
 from openai import AsyncOpenAI
 
@@ -69,7 +69,8 @@ class LLMClient:
     def model(self) -> str:
         return self.providers[0].model if self.providers else ""
 
-    async def generate_json(self, prompt: str, system_prompt: str, max_tokens: int = 900) -> dict[str, Any]:
+    async def generate_json(self, prompt: str, system_prompt: str, max_tokens: int = 900,
+                            timeout: Optional[float] = None) -> dict[str, Any]:
         if not self.providers:
             return {}
         if self._usage and not await self._usage.take("llm"):
@@ -84,7 +85,7 @@ class LLMClient:
             try:
                 response = await p.client.chat.completions.create(
                     model=p.model, messages=messages, response_format={"type": "json_object"},
-                    max_tokens=max_tokens, temperature=0.2, timeout=self._timeout,
+                    max_tokens=max_tokens, temperature=0.2, timeout=timeout or self._timeout,
                 )
                 content = (response.choices[0].message.content or "").strip()
             except Exception as e:  # network, timeout, auth, provider errors: try the next provider
