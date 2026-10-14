@@ -34,7 +34,10 @@ class Settings:
     line_login_channel_id: str   # LIFF pages (profile, date poll) live on this channel
     liff_id: str
 
-    # Models and data sources
+    # Models and data sources: Gemini on Vertex AI first, GMI Cloud as the fallback
+    vertex_project: str      # empty = Vertex AI off
+    vertex_location: str
+    vertex_model: str
     gmi_api_key: str
     gmi_base_url: str
     gmi_model: str
@@ -67,6 +70,7 @@ class Settings:
     daily_simulator_limit: int
     daily_agent_limit: int
     invite_ttl_days: int
+    judge_code_days: int     # the shared judges' code outlives judging (final pitch 12/01)
     held_messages_max: int
     group_retention_days: int
 
@@ -92,6 +96,9 @@ def _load() -> Settings:
         line_bot_basic_id=os.getenv("LINE_BOT_BASIC_ID", ""),
         line_login_channel_id=os.getenv("LINE_LOGIN_CHANNEL_ID", ""),
         liff_id=os.getenv("LIFF_ID", ""),
+        vertex_project=(os.getenv("VERTEX_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT", "")),
+        vertex_location=(os.getenv("VERTEX_LOCATION") or "global"),
+        vertex_model=(os.getenv("VERTEX_MODEL") or "google/gemini-3.5-flash-lite"),
         gmi_api_key=os.getenv("GMI_API_KEY", ""),
         gmi_base_url=(os.getenv("GMI_BASE_URL") or "https://api.gmi-serving.com/v1"),
         gmi_model=(os.getenv("GMI_MODEL") or "google/gemini-3.5-flash-lite"),
@@ -118,6 +125,7 @@ def _load() -> Settings:
         daily_simulator_limit=_int("DAILY_SIMULATOR_LIMIT", 120),
         daily_agent_limit=_int("DAILY_AGENT_LIMIT", 20),
         invite_ttl_days=_int("INVITE_TTL_DAYS", 14),
+        judge_code_days=_int("JUDGE_CODE_DAYS", 60),
         held_messages_max=_int("HELD_MESSAGES_MAX", 50),
         group_retention_days=_int("GROUP_RETENTION_DAYS", 90),
     )

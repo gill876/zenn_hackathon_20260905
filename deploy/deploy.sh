@@ -69,7 +69,7 @@ setup() {
   echo "== APIs"
   gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
     firestore.googleapis.com secretmanager.googleapis.com iam.googleapis.com places.googleapis.com \
-    apikeys.googleapis.com billingbudgets.googleapis.com "${P[@]}"
+    apikeys.googleapis.com billingbudgets.googleapis.com aiplatform.googleapis.com "${P[@]}"
 
   echo "== budgets (email alerts only; they don't stop anything)"
   if ! gcloud billing budgets list --billing-project="$PROJECT_ID" --billing-account="$BILLING_ACCOUNT" --format="value(displayName)" | grep -q "AsobiAgent credit burn"; then
@@ -102,8 +102,10 @@ setup() {
   gcloud iam service-accounts describe "$JOB_SA" "${P[@]}" >/dev/null 2>&1 || \
     gcloud iam service-accounts create asobi-form-agent --display-name="AsobiAgent form agent" "${P[@]}"
   for sa in "$WEB_SA" "$JOB_SA"; do
-    gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$sa" --role=roles/datastore.user \
-      --condition=None --quiet >/dev/null
+    for role in roles/datastore.user roles/aiplatform.user; do
+      gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$sa" --role="$role" \
+        --condition=None --quiet >/dev/null
+    done
   done
 
   echo "== Places API key (restricted to Places API)"

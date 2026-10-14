@@ -87,10 +87,12 @@
                 <option value="田中">田中 (中目黒発)</option>
                 <option value="高橋">高橋 (柏発)</option>
               </select>
+              <label for="accessCode">審査用コード:</label>
+              <input type="text" id="accessCode" placeholder="ASBI-XXXX-XXXX" autocomplete="off" spellcheck="false" />
             </div>
             <div class="input-row">
               <span class="input-icon">➕</span>
-              <input type="text" id="chatInput" placeholder="自由入力は管理者のみ（LINE版でお試しください）" />
+              <input type="text" id="chatInput" placeholder="メッセージを入力（自由入力は審査用コードが必要です）" />
               <button id="sendBtn" class="btn-line-send">送信</button>
             </div>
           </div>

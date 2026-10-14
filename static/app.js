@@ -3,7 +3,7 @@
  *
  * Public visitors can replay the preset group chats: the server runs the real pipeline (Ekispert hub,
  * HotPepper venues) with rule-based reading instead of the LLM. Free-text chat runs the full LLM
- * pipeline and needs the admin token (open the page once with ?admin=<token>).
+ * pipeline and needs the admin token (open the page once with ?admin=<token>) or the judges' shared code.
  * Choosing a venue opens 予約の準備: a call script, the HotPepper page, and the demo form agent.
  * Nothing here places a phone call or claims a booking was made.
  */
@@ -43,6 +43,13 @@ document.addEventListener("DOMContentLoaded", () => {
   } catch (e) { /* storage blocked: free text stays locked */ }
   const adminToken = () => { try { return sessionStorage.getItem("asobiAdminToken") || ""; } catch (e) { return ""; } };
 
+  // Judges' shared code for live free-text chat, typed into the input bar; kept for this tab only.
+  const accessInput = $("accessCode");
+  try { accessInput.value = sessionStorage.getItem("asobiAccessCode") || ""; } catch (e) { /* storage blocked */ }
+  accessInput.addEventListener("change", () => {
+    try { sessionStorage.setItem("asobiAccessCode", accessInput.value.trim()); } catch (e) { /* storage blocked */ }
+  });
+
   let history_ = [];   // messages in the current simulated chat
   let lastPlan = null; // day/time/pax/organizer from the last pipeline run
 
@@ -79,7 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
     stepBoxes.agent_1.querySelector(".step-status").textContent = "待機中";
   }
 
-  // ---- free-text chat (admin only) ---------------------------------------------------------------
+  // ---- free-text chat (admin or judges' code) ---------------------------------------------------------------
   sendBtn.addEventListener("click", () => handleSendMessage());
   chatInput.addEventListener("keypress", (e) => { if (e.key === "Enter") handleSendMessage(); });
 
@@ -94,7 +101,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Admin-Token": adminToken() },
+        headers: { "Content-Type": "application/json", "X-Admin-Token": adminToken(), "X-Access-Code": accessInput.value.trim() },
         body: JSON.stringify({ messages: history_ }),
       });
       const data = await res.json();

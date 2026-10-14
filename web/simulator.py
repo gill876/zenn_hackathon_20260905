@@ -4,7 +4,7 @@ Web simulator API (the hackathon demo page at /).
 Public mode replays the three preset group chats through the real pipeline, but without the LLM: stations
 and dates are read by rules, the hub comes from Ekispert (cached for 30 days), and venues come from
 HotPepper (cached for 24 hours). So a visitor costs no model credits, and a daily cap bounds the rest.
-Free-text chat runs the full LLM pipeline and needs the admin token.
+Free-text chat runs the full LLM pipeline and needs the admin token or the judges' shared code.
 """
 
 import hmac
@@ -19,6 +19,7 @@ from agents.ekispert_agent import find_hub
 from bot.deps import Deps
 from bot.text_parse import date_hint, hint_text, merge_hints
 from services import line_flex
+from services.ids import normalize_invite_code
 
 router = APIRouter(prefix="/api")
 
@@ -68,6 +69,13 @@ def _deps(request: Request) -> Deps:
 def _is_admin(deps: Deps, token: Optional[str]) -> bool:
     expected = deps.settings.admin_api_token
     return bool(expected) and bool(token) and hmac.compare_digest(expected, token)
+
+
+async def _is_judge(deps: Deps, code: Optional[str]) -> bool:
+    """The shared judges' code (made with /judge) also unlocks free text here; single-use invites don't."""
+    code = normalize_invite_code(code or "")
+    invite = await deps.store.get("invites", code) if code else None
+    return bool(invite) and (invite.get("max_uses") or 1) > 1 and invite.get("expires_at", 0) >= deps.clock()
 
 
 async def _cached_hub(deps: Deps, stations: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
@@ -160,10 +168,11 @@ async def scenario(request: Request, req: ScenarioRequest) -> dict[str, Any]:
 
 
 @router.post("/chat")
-async def chat(request: Request, req: ChatRequest, x_admin_token: Optional[str] = Header(default=None)) -> dict[str, Any]:
+async def chat(request: Request, req: ChatRequest, x_admin_token: Optional[str] = Header(default=None),
+               x_access_code: Optional[str] = Header(default=None)) -> dict[str, Any]:
     deps = _deps(request)
-    if not _is_admin(deps, x_admin_token):
-        raise HTTPException(403, "自由入力はLINE版でお試しください（このページではシナリオ再生のみ公開しています）。")
+    if not (_is_admin(deps, x_admin_token) or await _is_judge(deps, x_access_code)):
+        raise HTTPException(403, "自由入力には審査用コードが必要です。上の欄に入力してください（シナリオ再生はコードなしで使えます）。")
     if not await deps.usage.take("simulator"):
         raise HTTPException(429, "本日のデモ実行回数の上限に達しました。")
     return {"status": "ok", **await run_pipeline(deps, req.messages[-30:], use_llm=True)}

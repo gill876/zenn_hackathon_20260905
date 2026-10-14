@@ -77,7 +77,7 @@ def _people(plan: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _all_have_stations(plan: dict[str, Any]) -> bool:
     people = list(plan["participants"].values())
-    return len(people) >= 2 and all(p.get("station") for p in people)
+    return len(people) >= plan.get("min_people", 2) and all(p.get("station") for p in people)
 
 
 def _station_rows(plan: dict[str, Any]) -> list[tuple[str, Optional[str]]]:
@@ -483,6 +483,7 @@ class GroupBot:
         if not station:
             station = (await self.d.store.get("profiles", c.uhash) or {}).get("station")
         hint = date_hint(request) if request else {}
+        min_people = await self._min_people(c)
         now, s = c.now, self.s
 
         def fn(docs):
@@ -497,17 +498,30 @@ class GroupBot:
             plan = {
                 "nonce": new_nonce(), "phase": "gathering", "organizer": c.uhash, "organizer_name": name,
                 "started_at": now, "participants": {c.uhash: me}, "next_n": 2, "passed": [],
-                "held": [{"n": 1, "t": request[:300]}] if request else [], "hint": hint,
+                "held": [{"n": 1, "t": request[:300]}] if request else [], "hint": hint, "min_people": min_people,
                 "expire_at": min(group.get("active_until", now + s.group_active_days * DAY),
                                  now + s.group_active_days * DAY),
             }
+            if _all_have_stations(plan):      # only possible in a one-person group
+                plan["phase"] = "ready"
             return [self._touch(group, now), plan], plan
 
         plan = await self._txn(c.ghash, fn)
         if plan == "exists":
             await self._say(c, [line_flex.plain(texts.gathering_status([]))])
+        elif plan and plan["phase"] == "ready":
+            await self._say(c, [line_flex.ready_check(plan["nonce"], _station_rows(plan), _when(plan))])
         elif plan:
             await self._say(c, [line_flex.gathering(plan["nonce"], s.max_participants)])
+
+    async def _min_people(self, c: Ctx) -> int:
+        """Two people make a group plan. A group whose only member is the person asking (a judge's
+        ひとりグループ, say) can plan alone; if LINE can't tell us the size, keep the usual two."""
+        try:
+            members = await self.d.line.member_count(c.kind, c.chat_id)
+        except Exception:
+            members = None
+        return 1 if members == 1 else 2
 
     async def join(self, c: Ctx, nonce: Optional[str]) -> None:
         name = await self._name(c)
@@ -606,7 +620,7 @@ class GroupBot:
         if c.uhash != plan["organizer"]:
             await self._say(c, [line_flex.plain(texts.organizer_only(plan["organizer_name"]))])
             return
-        if sum(1 for p in plan["participants"].values() if p.get("station")) < 2:
+        if sum(1 for p in plan["participants"].values() if p.get("station")) < plan.get("min_people", 2):
             await self._say(c, [line_flex.plain(texts.NEED_TWO)])
             return
         await self.search(c, nonce)
@@ -1066,6 +1080,7 @@ class GroupBot:
                 me["station"] = {"name": st["name"], "code": st["code"]}
             participants[u] = me
         organizer = c.uhash if c.uhash in participants else (people[0][0] if people else c.uhash)
+        min_people = await self._min_people(c)
         now, s = c.now, self.s
 
         def fn(docs):
@@ -1076,7 +1091,7 @@ class GroupBot:
                 "nonce": new_nonce(), "phase": "gathering", "organizer": organizer,
                 "organizer_name": participants.get(organizer, {}).get("name", "幹事"), "started_at": now,
                 "participants": participants, "next_n": len(participants) + 1, "passed": [], "held": [],
-                "hint": hint, "auto_search": True,
+                "hint": hint, "auto_search": True, "min_people": min_people,
                 "expire_at": min(grp.get("active_until", now + s.group_active_days * DAY), now + s.group_active_days * DAY),
             }
             return [self._touch(grp, now), new_plan], new_plan

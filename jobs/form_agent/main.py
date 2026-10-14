@@ -105,7 +105,7 @@ def main() -> None:
     s = get_settings()
     run_id = os.environ["RUN_ID"]
     store = FirestoreStore(project=s.gcp_project or None)
-    llm = LLMClient(s.gmi_api_key, s.gmi_base_url, s.gmi_model)
+    llm = LLMClient.from_settings(s)
     asyncio.run(run_agent(run_id, store, llm, s.public_base_url))
 
 

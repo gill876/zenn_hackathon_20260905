@@ -110,13 +110,14 @@ def make_settings(**overrides: Any) -> Settings:
         on_cloud_run=False, public_base_url="https://asobi.example", line_channel_secret="test-secret",
         line_channel_access_token="", line_admin_user_id=ADMIN, line_bot_basic_id="@test",
         line_login_channel_id="1234567890", liff_id="1234567890-abcdefgh",
+        vertex_project="", vertex_location="", vertex_model="",
         gmi_api_key="", gmi_base_url="", gmi_model="", ekispert_api_key="k", ekispert_mcp_url="",
         hotpepper_api_key="k", places_api_key="k", app_secret="test-app-secret", admin_api_token="admin-token",
         store_backend="memory", gcp_project="", region="asia-northeast1", form_agent_mode="off",
         form_agent_job="asobi-form-agent", plans_per_group=1, searches_per_group=3, group_active_days=7,
         activation_window_hours=24, max_participants=10, groups_per_user=2, daily_search_limit=100,
         daily_llm_limit=300, daily_places_limit=30, daily_simulator_limit=60, daily_agent_limit=20,
-        invite_ttl_days=14, held_messages_max=50, group_retention_days=90,
+        invite_ttl_days=14, judge_code_days=60, held_messages_max=50, group_retention_days=90,
     )
     base.update(overrides)
     return Settings(**base)
@@ -131,7 +132,7 @@ def make_deps(**overrides: Any) -> Deps:
                           "agent": settings.daily_agent_limit}, clock=clock)
     ekispert = FakeEkispert()
     deps = Deps(settings=settings, store=store, line=RecordingLineApi(names={}), ids=Ids(settings.app_secret),
-                usage=usage, llm=LLMClient("", "", ""), ekispert=ekispert,
+                usage=usage, llm=LLMClient([]), ekispert=ekispert,
                 stations=StationResolver(ekispert, store, clock=clock), hotpepper=FakeHotPepper(),
                 places=FakePlaces(), clock=clock)
     from services.liff_auth import FakeVerifier

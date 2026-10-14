@@ -7,7 +7,7 @@ The admin is recognised by their LINE user ID and is always verified.
 """
 
 import datetime as dt
-from typing import Any
+from typing import Any, Optional
 
 from bot import texts
 from bot.deps import Deps
@@ -75,12 +75,16 @@ async def _redeem(deps: Deps, ev: dict[str, Any], uhash: str, code: str) -> None
             return [KEEP, KEEP], ("already", 0)
         if not invite:
             return [KEEP, KEEP], ("unknown", 0)
-        if invite.get("used_by"):
+        shared = (invite.get("max_uses") or 1) > 1   # the judges' code: one code, many people
+        if invite.get("used_by") or (shared and invite.get("uses", 0) >= invite["max_uses"]):
             return [KEEP, KEEP], ("used", 0)
         if invite.get("expires_at", 0) < now:
             return [KEEP, KEEP], ("expired", 0)
-        invite = dict(invite, used_by=uhash, used_at=now, expire_at=now + 30 * 86400)
-        user = {"verified": True, "verified_at": now, "via": "invite", "groups_activated": 0}
+        if shared:
+            invite = dict(invite, uses=invite.get("uses", 0) + 1)
+        else:
+            invite = dict(invite, used_by=uhash, used_at=now, expire_at=now + 30 * 86400)
+        user = {"verified": True, "verified_at": now, "via": "judge" if shared else "invite", "groups_activated": 0}
         return [invite, user], ("ok", limit)
 
     outcome, left = await deps.store.transact([("invites", code), ("users", uhash)], fn)
@@ -103,13 +107,15 @@ def _profile_offer(deps: Deps, verified: bool) -> list[dict[str, Any]]:
     return [line_flex.profile_offer(f"https://liff.line.me/{deps.settings.liff_id}/profile")]
 
 
-async def create_invites(deps: Deps, count: int) -> list[str]:
+async def create_invites(deps: Deps, count: int, max_uses: int = 1, days: Optional[int] = None) -> list[str]:
     now = deps.clock()
-    expires = now + deps.settings.invite_ttl_days * 86400
+    expires = now + (days or deps.settings.invite_ttl_days) * 86400
     codes = []
     while len(codes) < count:
         code = new_invite_code()
         doc = {"created_at": now, "expires_at": expires, "used_by": None, "expire_at": expires + 7 * 86400}
+        if max_uses > 1:
+            doc.update(max_uses=max_uses, uses=0)
         if await deps.store.create_if_absent("invites", code, doc):
             codes.append(code)
     return codes
@@ -128,6 +134,15 @@ async def _admin_command(deps: Deps, ev: dict[str, Any], text: str) -> None:
         until = dt.datetime.fromtimestamp(deps.clock() + s.invite_ttl_days * 86400, JST).strftime("%-m/%-d")
         body = "\n".join(codes)
         await deps.reply(ev, [line_flex.plain(f"招待コード（各1回・{until}まで有効）"), line_flex.plain(body)])
+    elif command == "/judge":
+        try:
+            uses = max(2, min(100, int(parts[1]))) if len(parts) > 1 else 30
+        except ValueError:
+            uses = 30
+        code = (await create_invites(deps, 1, max_uses=uses, days=s.judge_code_days))[0]
+        until = dt.datetime.fromtimestamp(deps.clock() + s.judge_code_days * 86400, JST).strftime("%-m/%-d")
+        await deps.reply(ev, [line_flex.plain(f"審査用コード（{uses}人まで・{until}まで有効・Web版の自由入力にも使えます）"),
+                              line_flex.plain(code)])
     elif command == "/stats":
         today = await deps.usage.today()
         users = await deps.store.count("users")
