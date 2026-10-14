@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" font-family="'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',system-ui,sans-serif">
+<defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#94A3B8"/></marker><marker id="head-start" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10,0 L0,5 L10,10 z" fill="#94A3B8"/></marker></defs>
+<rect width="1920" height="1080" fill="#0B0F19"/>
+<text x="48" y="66" font-size="34" fill="#F8FAFC" font-weight="700" text-anchor="start">AsobiAgent システム構成</text>
+<text x="48" y="100" font-size="17" fill="#94A3B8" font-weight="400" text-anchor="start">LINEグループに入れるだけ。AIが段取りして、決めるのはみんな。</text>
+<text x="1872" y="66" font-size="15" fill="#94A3B8" font-weight="400" text-anchor="end">第5回 Agentic AI Hackathon with Google Cloud</text>
+<rect x="48" y="150" width="252" height="140" rx="14" fill="#161F30" stroke="#06C755" stroke-width="1.5"/>
+<text x="68" y="184" font-size="18" fill="#F8FAFC" font-weight="700" text-anchor="start">👥 LINEグループ</text>
+<text x="68" y="216" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">友だち2〜10人（ひとりでも可）</text>
+<text x="68" y="242" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">ボタンとクイックリプライで進む</text>
+<rect x="48" y="316" width="252" height="170" rx="14" fill="#161F30" stroke="#06C755" stroke-width="1.5"/>
+<text x="68" y="350" font-size="18" fill="#F8FAFC" font-weight="700" text-anchor="start">📱 LIFF（LINE内の画面）</text>
+<text x="68" y="382" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">プロフィール：好み・最寄り駅</text>
+<text x="68" y="408" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">日程調整：カレンダーと○△×</text>
+<text x="68" y="434" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">LINEのIDトークンで本人確認</text>
+<rect x="48" y="512" width="252" height="130" rx="14" fill="#161F30" stroke="#23324A" stroke-width="1.5"/>
+<text x="68" y="546" font-size="18" fill="#F8FAFC" font-weight="700" text-anchor="start">🖥 Webデモ（審査用）</text>
+<text x="68" y="578" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">シナリオ再生はコード不要</text>
+<text x="68" y="604" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">自由入力は審査用コード</text>
+<rect x="352" y="150" width="220" height="300" rx="14" fill="#161F30" stroke="#06C755" stroke-width="1.5"/>
+<text x="370" y="184" font-size="18" fill="#06C755" font-weight="700" text-anchor="start">LINE Platform</text>
+<rect x="366" y="200" width="192" height="72" rx="10" fill="#0F1726" stroke="#23324A" stroke-width="1.5"/>
+<text x="380" y="228" font-size="15" fill="#F8FAFC" font-weight="700" text-anchor="start">Messaging API</text>
+<text x="380" y="252" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="start">Webhook・返信のみ</text>
+<rect x="366" y="282" width="192" height="72" rx="10" fill="#0F1726" stroke="#23324A" stroke-width="1.5"/>
+<text x="380" y="310" font-size="15" fill="#F8FAFC" font-weight="700" text-anchor="start">Flex Message</text>
+<text x="380" y="334" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="start">カード・投票ボタン</text>
+<rect x="366" y="364" width="192" height="72" rx="10" fill="#0F1726" stroke="#23324A" stroke-width="1.5"/>
+<text x="380" y="392" font-size="15" fill="#F8FAFC" font-weight="700" text-anchor="start">LIFF・LINEログイン</text>
+<text x="380" y="416" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="start">IDトークンを発行</text>
+<line x1="300" y1="220" x2="352" y2="220" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)" marker-start="url(#head-start)"/>
+<line x1="300" y1="400" x2="352" y2="400" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)" marker-start="url(#head-start)"/>
+<rect x="640" y="128" width="900" height="744" rx="18" fill="none" stroke="#38BDF8" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="664" y="156" font-size="15" fill="#38BDF8" font-weight="700" text-anchor="start">Google Cloud · asia-northeast1（東京）</text>
+<rect x="664" y="172" width="852" height="440" rx="14" fill="#161F30" stroke="#06C755" stroke-width="2"/>
+<text x="688" y="206" font-size="18" fill="#F8FAFC" font-weight="700" text-anchor="start">Cloud Run · asobi-agent（FastAPI・使わないときは0台）</text>
+<text x="688" y="248" font-size="13" fill="#94A3B8" font-weight="700" text-anchor="start">入口</text>
+<rect x="732" y="228" width="74" height="30" rx="15" fill="#F8717122" stroke="#F8717166"/><text x="769.0" y="247.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">署名検証</text>
+<rect x="814" y="228" width="125" height="30" rx="15" fill="#F8717122" stroke="#F8717166"/><text x="876.5" y="247.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">重複イベント排除</text>
+<rect x="947" y="228" width="113" height="30" rx="15" fill="#F8717122" stroke="#F8717166"/><text x="1003.5" y="247.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">招待コード認証</text>
+<rect x="1068" y="228" width="151" height="30" rx="15" fill="#F8717122" stroke="#F8717166"/><text x="1143.5" y="247.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">グループ・1日の上限</text>
+<rect x="1227" y="228" width="215" height="30" rx="15" fill="#F8717122" stroke="#F8717166"/><text x="1334.5" y="247.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">古いボタンは無効（nonce）</text>
+<rect x="688" y="276" width="62" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="719.0" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">有効化</text>
+<text x="760" y="296" font-size="14" fill="#94A3B8" font-weight="700" text-anchor="middle">→</text>
+<rect x="770" y="276" width="74" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="807.0" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">日程調整</text>
+<text x="854" y="296" font-size="14" fill="#94A3B8" font-weight="700" text-anchor="middle">→</text>
+<rect x="864" y="276" width="62" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="895.0" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">出発駅</text>
+<text x="936" y="296" font-size="14" fill="#94A3B8" font-weight="700" text-anchor="middle">→</text>
+<rect x="946" y="276" width="62" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="977.0" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">集合駅</text>
+<text x="1018" y="296" font-size="14" fill="#94A3B8" font-weight="700" text-anchor="middle">→</text>
+<rect x="1028" y="276" width="62" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="1059.0" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">6候補</text>
+<text x="1100" y="296" font-size="14" fill="#94A3B8" font-weight="700" text-anchor="middle">→</text>
+<rect x="1110" y="276" width="49" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="1134.5" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">投票</text>
+<text x="1169" y="296" font-size="14" fill="#94A3B8" font-weight="700" text-anchor="middle">→</text>
+<rect x="1179" y="276" width="87" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="1222.5" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">決定・退出</text>
+<rect x="688" y="328" width="189" height="264" rx="12" fill="#0F1726" stroke="#A78BFA" stroke-width="1.5"/>
+<text x="702" y="360" font-size="17" fill="#F8FAFC" font-weight="700" text-anchor="start">① 日程・希望</text>
+<rect x="702" y="374" width="61" height="26" rx="13" fill="#A78BFA22" stroke="#A78BFA66"/><text x="732.5" y="391.32" font-size="12" fill="#F8FAFC" font-weight="500" text-anchor="middle">Gemini</text>
+<text x="700" y="436" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">・チャットから日時と希望</text>
+<text x="700" y="472" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">・全員回答で自動締切</text>
+<text x="700" y="508" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">・最有力の日で開始</text>
+<text x="700" y="544" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">・落ちてもルールで続行</text>
+<rect x="893" y="328" width="189" height="264" rx="12" fill="#0F1726" stroke="#38BDF8" stroke-width="1.5"/>
+<text x="907" y="360" font-size="17" fill="#F8FAFC" font-weight="700" text-anchor="start">② 集合駅</text>
+<rect x="907" y="374" width="78" height="26" rx="13" fill="#38BDF822" stroke="#38BDF866"/><text x="946.0" y="391.32" font-size="12" fill="#F8FAFC" font-weight="500" text-anchor="middle">駅すぱあと</text>
+<text x="905" y="436" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">・範囲探索1回で全員分</text>
+<text x="905" y="472" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">・最遠の人が最短の駅</text>
+<text x="905" y="508" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">・ダイヤ探索は不使用</text>
+<text x="905" y="544" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">・駅は90日キャッシュ</text>
+<rect x="1098" y="328" width="189" height="264" rx="12" fill="#0F1726" stroke="#A78BFA" stroke-width="1.5"/>
+<text x="1112" y="360" font-size="17" fill="#F8FAFC" font-weight="700" text-anchor="start">③ お店選び</text>
+<rect x="1112" y="374" width="61" height="26" rx="13" fill="#A78BFA22" stroke="#A78BFA66"/><text x="1142.5" y="391.32" font-size="12" fill="#F8FAFC" font-weight="500" text-anchor="middle">Gemini</text>
+<text x="1110" y="436" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">・全員の好みを重ねる</text>
+<text x="1110" y="472" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">・苦手・営業時間外は除外</text>
+<text x="1110" y="508" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">・理由はGeminiが一言 ✨</text>
+<text x="1110" y="544" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">・提案されたお店も投票へ</text>
+<rect x="1303" y="328" width="189" height="264" rx="12" fill="#0F1726" stroke="#06C755" stroke-width="1.5"/>
+<text x="1317" y="360" font-size="17" fill="#F8FAFC" font-weight="700" text-anchor="start">④ 予約の準備</text>
+<rect x="1317" y="374" width="78" height="26" rx="13" fill="#06C75522" stroke="#06C75566"/><text x="1356.0" y="391.32" font-size="12" fill="#F8FAFC" font-weight="500" text-anchor="middle">人が決める</text>
+<text x="1315" y="436" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">・電話の台本と発信ボタン</text>
+<text x="1315" y="472" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">・予約ページへのリンク</text>
+<text x="1315" y="508" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">・電話・確定は人が行う</text>
+<text x="1315" y="544" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">・フォーム入力はデモのみ</text>
+<rect x="664" y="640" width="220" height="210" rx="14" fill="#161F30" stroke="#A78BFA" stroke-width="1.5"/>
+<text x="678" y="672" font-size="16" fill="#A78BFA" font-weight="700" text-anchor="start">Vertex AI</text>
+<text x="678" y="704" font-size="14" fill="#F8FAFC" font-weight="400" text-anchor="start">Gemini 3.5 Flash-Lite</text>
+<text x="678" y="734" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">日時の読み取り・理由づけ</text>
+<text x="678" y="764" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">1日300回まで</text>
+<rect x="898" y="640" width="200" height="210" rx="14" fill="#161F30" stroke="#38BDF8" stroke-width="1.5"/>
+<text x="912" y="672" font-size="16" fill="#38BDF8" font-weight="700" text-anchor="start">Cloud Run Jobs</text>
+<text x="912" y="704" font-size="14" fill="#F8FAFC" font-weight="400" text-anchor="start">フォーム入力エージェント</text>
+<text x="912" y="734" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">Playwright ＋ Gemini</text>
+<text x="912" y="764" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">デモ用フォームのみ</text>
+<rect x="1112" y="640" width="200" height="210" rx="14" fill="#161F30" stroke="#FBBF24" stroke-width="1.5"/>
+<text x="1126" y="672" font-size="16" fill="#FBBF24" font-weight="700" text-anchor="start">Firestore（東京）</text>
+<text x="1126" y="704" font-size="14" fill="#F8FAFC" font-weight="400" text-anchor="start">TTLで自動削除</text>
+<text x="1126" y="734" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">LINE IDはHMACで匿名化</text>
+<text x="1126" y="764" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">会話は検索後に削除</text>
+<rect x="1326" y="640" width="190" height="210" rx="14" fill="#161F30" stroke="#94A3B8" stroke-width="1.5"/>
+<text x="1340" y="672" font-size="16" fill="#F8FAFC" font-weight="700" text-anchor="start">運用</text>
+<text x="1340" y="700" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">Secret Manager</text>
+<text x="1340" y="728" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">Cloud Build</text>
+<text x="1340" y="756" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">Artifact Registry</text>
+<text x="1340" y="784" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">Cloud Logging</text>
+<text x="1340" y="812" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">予算アラート</text>
+<line x1="774" y1="612" x2="774" y2="640" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/>
+<line x1="998" y1="612" x2="998" y2="640" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/><text x="1022" y="631" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="middle">起動</text>
+<line x1="1212" y1="612" x2="1212" y2="640" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/>
+<line x1="898" y1="745" x2="884" y2="745" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/>
+<line x1="572" y1="268" x2="664" y2="268" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/><text x="606" y="258" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="middle">Webhook</text>
+<line x1="664" y1="318" x2="572" y2="318" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/><text x="606" y="340" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="middle">返信</text>
+<line x1="300" y1="476" x2="664" y2="476" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/><text x="470" y="466" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="middle">LIFF API（IDトークン検証）</text>
+<line x1="300" y1="577" x2="664" y2="577" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/><text x="470" y="567" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="middle">/api（審査用コード）</text>
+<text x="1580" y="140" font-size="15" fill="#94A3B8" font-weight="700" text-anchor="start">外部API</text>
+<rect x="1580" y="156" width="292" height="96" rx="14" fill="#161F30" stroke="#38BDF8" stroke-width="1.5"/>
+<text x="1598" y="194" font-size="16" fill="#F8FAFC" font-weight="700" text-anchor="start">駅すぱあと API（MCP）</text>
+<text x="1598" y="222" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">駅の照合・範囲探索</text>
+<rect x="1580" y="268" width="292" height="96" rx="14" fill="#161F30" stroke="#23324A" stroke-width="1.5"/>
+<text x="1598" y="306" font-size="16" fill="#F8FAFC" font-weight="700" text-anchor="start">ホットペッパー グルメ</text>
+<text x="1598" y="334" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">実在のお店・24時間キャッシュ</text>
+<rect x="1580" y="380" width="292" height="96" rx="14" fill="#161F30" stroke="#23324A" stroke-width="1.5"/>
+<text x="1598" y="418" font-size="16" fill="#F8FAFC" font-weight="700" text-anchor="start">Google Places API</text>
+<text x="1598" y="446" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">電話番号・提案されたお店</text>
+<rect x="1580" y="492" width="292" height="96" rx="14" fill="#161F30" stroke="#23324A" stroke-width="1.5"/>
+<text x="1598" y="530" font-size="16" fill="#F8FAFC" font-weight="700" text-anchor="start">Time Out 東京</text>
+<text x="1598" y="558" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">事実とリンクのみ・ビルド時に索引</text>
+<rect x="1580" y="604" width="292" height="96" rx="14" fill="#161F30" stroke="#A78BFA" stroke-width="1.5"/>
+<text x="1598" y="642" font-size="16" fill="#F8FAFC" font-weight="700" text-anchor="start">GMI Cloud</text>
+<text x="1598" y="670" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">Gemini の予備（Vertex が落ちたら）</text>
+<line x1="1516" y1="204" x2="1580" y2="204" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/>
+<line x1="1516" y1="316" x2="1580" y2="316" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/>
+<line x1="1516" y1="428" x2="1580" y2="428" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/>
+<line x1="1580" y1="540" x2="1516" y2="540" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#head)"/>
+<line x1="1516" y1="600" x2="1580" y2="646" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#head)"/>
+<rect x="48" y="900" width="1824" height="128" rx="14" fill="#1A1420" stroke="#F87171" stroke-width="1.5"/>
+<text x="72" y="952" font-size="17" fill="#F87171" font-weight="700" text-anchor="start">ガードレール</text>
+<text x="232" y="948" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ 予約・電話は人が行う</text>
+<text x="642" y="948" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ 招待制（審査用コードあり）</text>
+<text x="1052" y="948" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ 1グループ1軒・検索3回・7日</text>
+<text x="1462" y="948" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ 1日の上限：LLM 300・検索 100</text>
+<text x="232" y="994" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ 呼ばれるまでトークを読まない</text>
+<text x="642" y="994" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ 決まったら名前・投票を消して退出</text>
+<text x="1052" y="994" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ LLMの出力は候補IDと決まった項目だけ</text>
+<text x="1462" y="994" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ Vertex → GMI → ルールの3段構え</text>
+</svg>

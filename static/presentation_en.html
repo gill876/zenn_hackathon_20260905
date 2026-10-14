@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AsobiAgent — Pitch Deck & Speaker Notes (English + Japanese Cheatsheet)</title>
+  <title>AsobiAgent — Pitch deck (5th Agentic AI Hackathon)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+JP:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+JP:wght@400;600;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #0B0F19;
@@ -15,6 +15,8 @@
       --accent-green: #06C755;
       --accent-blue: #38BDF8;
       --accent-gold: #FBBF24;
+      --accent-red: #F87171;
+      --accent-purple: #A78BFA;
       --text-main: #F8FAFC;
       --text-sub: #94A3B8;
     }
@@ -28,6 +30,7 @@
       display: flex;
       flex-direction: column;
     }
+    /* Top Bar */
     .slide-navbar {
       height: 54px;
       background: #111827;
@@ -69,9 +72,9 @@
       color: var(--text-sub);
     }
     .btn-lang {
-      background: rgba(6, 199, 85, 0.15);
-      border: 1px solid rgba(6, 199, 85, 0.4);
-      color: var(--accent-green);
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: var(--accent-blue);
       text-decoration: none;
       padding: 6px 12px;
       border-radius: 6px;
@@ -88,6 +91,7 @@
       font-weight: bold;
     }
 
+    /* Slide Deck Viewport */
     .deck-viewport {
       flex: 1;
       position: relative;
@@ -96,7 +100,7 @@
     .slide {
       position: absolute;
       top: 0; left: 0; width: 100%; height: 100%;
-      padding: 36px 60px;
+      padding: 40px 60px;
       display: none;
       flex-direction: column;
       justify-content: center;
@@ -108,413 +112,519 @@
       opacity: 1;
     }
 
+    /* Typography & Components */
     .slide-category {
       color: var(--accent-blue);
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 1.5px;
+      letter-spacing: 1px;
       margin-bottom: 8px;
     }
     .slide-title {
-      font-size: 36px;
+      font-size: 38px;
       font-weight: 900;
       line-height: 1.25;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
       color: #FFFFFF;
     }
     .slide-title span { color: var(--accent-green); }
+    .slide-content {
+      font-size: 16px;
+      line-height: 1.7;
+      color: #CBD5E1;
+    }
 
+    /* Grid Layouts */
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 24px;
+      margin-top: 10px;
     }
     .grid-3 {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 20px;
+      margin-top: 10px;
     }
     .grid-4 {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 16px;
+      margin-top: 15px;
     }
-
     .card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 12px;
-      padding: 22px;
+      padding: 24px;
+      position: relative;
     }
     .card h3 {
-      font-size: 17px;
+      font-size: 18px;
       color: #FFF;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .card p {
-      font-size: 13.5px;
+      font-size: 14px;
       color: var(--text-sub);
       line-height: 1.6;
     }
-
-    /* Speaker Notes Box */
-    .speaker-box {
-      background: #0B132B;
-      border: 1px solid #1E293B;
-      border-left: 4px solid var(--accent-gold);
-      border-radius: 0 10px 10px 0;
-      padding: 16px 20px;
-      margin-top: 20px;
+    .card-highlight {
+      border-color: var(--accent-blue);
+      background: rgba(56, 189, 248, 0.05);
     }
-    .speaker-box-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .card-green {
+      border-color: var(--accent-green);
+      background: rgba(6, 199, 85, 0.05);
+    }
+
+    /* Step Pipeline Box */
+    .agent-box {
+      background: #0F172A;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: left;
+    }
+    .agent-box .tag {
+      font-size: 11px;
+      font-weight: bold;
+      color: var(--accent-blue);
+      text-transform: uppercase;
       margin-bottom: 6px;
     }
-    .speaker-tag {
-      font-size: 11px;
-      font-weight: 800;
-      color: var(--accent-gold);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .speaker-en {
-      font-size: 14px;
-      color: #F8FAFC;
-      line-height: 1.5;
+    .agent-box h4 {
+      font-size: 16px;
+      color: #FFF;
       margin-bottom: 8px;
     }
-    .speaker-ja-pill {
-      background: rgba(56, 189, 248, 0.1);
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      border-radius: 6px;
-      padding: 8px 12px;
+    .agent-box p {
+      font-size: 12px;
+      color: var(--text-sub);
+      line-height: 1.5;
     }
-    .speaker-ja-text {
-      font-size: 13px;
-      color: #38BDF8;
-      font-weight: bold;
+
+    /* Bullet Points */
+    .feature-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
-    .speaker-ja-romaji {
-      font-family: 'JetBrains Mono', monospace;
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 15px;
+    }
+    .feature-list li strong {
+      color: #FFF;
+    }
+    .icon-bullet {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    /* Speaker Script Cheat Box */
+    .speaker-cheat-box {
+      background: #0B132B;
+      border-left: 4px solid var(--accent-gold);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin-top: 20px;
+    }
+    .speaker-cheat-box .label {
       font-size: 11px;
-      color: #94A3B8;
-      margin-top: 2px;
+      font-weight: bold;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .speaker-cheat-box p {
+      font-size: 14px;
+      color: #E2E8F0;
+      line-height: 1.6;
+    }
+    .speaker-cheat-box .romaji {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #38BDF8;
+      margin-top: 4px;
+    }
+
+    .lead { font-size: 20px; max-width: 920px; margin-bottom: 28px; }
+    .card-purple { border-color: var(--accent-purple); background: rgba(167, 139, 250, 0.06); }
+    .agent-box .tag.purple { color: var(--accent-purple); }
+    .agent-box .tag.green { color: var(--accent-green); }
+    .steps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-top: 6px; }
+    .step { background: #0F172A; border: 1px solid var(--card-border); border-radius: 12px; padding: 16px; }
+    .step h4 { font-size: 16px; color: #FFF; margin: 10px 0 6px; }
+    .step p { font-size: 13px; color: var(--text-sub); line-height: 1.55; }
+    .who { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 10px; border-radius: 999px; }
+    .who.ai { background: rgba(167, 139, 250, 0.18); color: var(--accent-purple); }
+    .who.human { background: rgba(6, 199, 85, 0.18); color: var(--accent-green); }
+    .who.both { background: rgba(251, 191, 36, 0.18); color: var(--accent-gold); }
+    .note { margin-top: 16px; font-size: 14px; }
+    .mini { background: #0F172A; border: 1px dashed var(--card-border); border-radius: 10px; padding: 12px 14px; font-size: 14px; color: #CBD5E1; }
+    .mono { background: #0B0F19; padding: 12px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #4ADE80; line-height: 1.7; }
+    .feature-list li span:last-child { line-height: 1.55; }
+    .slide-arch { padding: 20px 40px; }
+    .slide-arch .slide-category { margin-bottom: 10px; }
+    .slide-arch .arch { width: 100%; max-height: calc(100vh - 54px - 150px); object-fit: contain; border-radius: 12px; border: 1px solid var(--card-border); }
+    /* Type grows with the window, so a full-screen recording stays readable. */
+    .slide { padding: 32px clamp(40px, 4.5vw, 96px); }
+    .slide-category { font-size: clamp(13px, 0.95vw, 18px); }
+    .slide-title { font-size: clamp(30px, 2.9vw, 56px); margin-bottom: clamp(18px, 1.6vw, 30px); }
+    .lead { font-size: clamp(18px, 1.45vw, 28px); max-width: 64vw; }
+    .card { padding: clamp(18px, 1.5vw, 28px); }
+    .card h3 { font-size: clamp(17px, 1.3vw, 25px); }
+    .card p, .feature-list li { font-size: clamp(14px, 1.05vw, 20px); }
+    .agent-box { padding: clamp(16px, 1.3vw, 26px); }
+    .agent-box h4 { font-size: clamp(16px, 1.2vw, 23px); }
+    .agent-box p { font-size: clamp(13px, 0.98vw, 19px); line-height: 1.65; }
+    .agent-box .tag { font-size: clamp(11px, 0.8vw, 15px); }
+    .step h4 { font-size: clamp(15px, 1.12vw, 21px); }
+    .step p { font-size: clamp(12.5px, 0.92vw, 18px); }
+    .who { font-size: clamp(11px, 0.78vw, 14px); }
+    .mini, .note { font-size: clamp(13px, 0.98vw, 19px); }
+    .mono { font-size: clamp(12px, 0.9vw, 17px); }
+    .speaker-cheat-box p { font-size: clamp(13px, 0.95vw, 18px); }
+    body.notes-off .speaker-cheat-box { display: none; }
+    body.notes-off .slide-arch .arch { max-height: calc(100vh - 54px - 80px); }
+    @media (max-width: 900px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .grid-3, .grid-4, .steps { grid-template-columns: 1fr 1fr; }
+      .slide { padding: 24px 16px; overflow-y: auto; justify-content: flex-start; }
+      .slide-title { font-size: 26px; }
+      .nav-brand { display: none; }
     }
   </style>
 </head>
 <body>
 
+  <!-- Navigation Bar -->
   <header class="slide-navbar">
     <div class="nav-brand">
-      <span>🤖</span> AsobiAgent — Pitch Deck & Speaker Notes
+      <span>🤖</span> AsobiAgent (アソビ・エージェント)
     </div>
     <div class="nav-controls">
-      <button class="btn-nav" id="prevBtn">◀ Previous</button>
-      <span class="slide-indicator" id="slideIndicator">1 / 7</span>
+      <button class="btn-nav" id="prevBtn">◀ Prev</button>
+      <span class="slide-indicator" id="slideIndicator">1 / 10</span>
       <button class="btn-nav" id="nextBtn">Next ▶</button>
-      <a href="/presentation_ja.html" class="btn-lang">日本語スライド (Japanese Deck)</a>
-      <a href="/" class="btn-demo" target="_blank">🚀 Launch Live Demo</a>
+      <button class="btn-nav" id="notesBtn" title="N key">🗣 Notes</button>
+      <a href="/presentation_ja.html" class="btn-lang">日本語</a>
+      <a href="/" class="btn-demo" target="_blank">🚀 Web demo</a>
     </div>
   </header>
 
+  <!-- Deck Viewport -->
   <main class="deck-viewport">
 
-    <!-- SLIDE 1: Title -->
+    <!-- SLIDE 1: Cover -->
     <section class="slide active">
-      <div class="slide-category">The 5th Agentic AI Hackathon with Google Cloud</div>
-      <h1 class="slide-title">AsobiAgent: <span>Group Outings Without an Organizer</span></h1>
-      <p style="font-size: 18px; color: #CBD5E1; max-width: 850px; margin-bottom: 24px;">
-        A multi-agent LINE bot that takes a group chat from <strong>"where is everyone coming from?"</strong> to a <strong>fair meeting station</strong> (Ekispert), a <strong>vote on real venues</strong>, and everything needed to <strong>book</strong>.
+      <div class="slide-category">5th Agentic AI Hackathon with Google Cloud</div>
+      <h1 class="slide-title">AsobiAgent <span>(アソビ・エージェント)</span></h1>
+      <p class="slide-content lead">
+        Add it to a LINE group. From <strong>dates → meeting station → places → booking prep</strong>, the AI does the legwork, and <strong>the friends decide</strong>.
       </p>
-
-      <div class="grid-3" style="max-width: 900px;">
-        <div class="card" style="border-color: #38BDF8;">
-          <h3>🚇 Ekispert MCP</h3>
-          <p>No timetables: one range search gives everyone's average travel time.</p>
+      <div class="grid-3" style="max-width: 1000px;">
+        <div class="card card-purple">
+          <h3>✨ Gemini (Vertex AI)</h3>
+          <p>Reads dates and wishes from the chat, and writes a one-line reason for each place based on the group's tastes.</p>
         </div>
-        <div class="card" style="border-color: #06C755;">
-          <h3>💬 LINE Flex UI</h3>
-          <p>No app to install. Joining, confirming and voting are one tap each.</p>
+        <div class="card card-highlight">
+          <h3>🚇 Ekispert API (MCP)</h3>
+          <p>One range search gives everyone's travel time. Picks the station where the farthest person travels least.</p>
         </div>
-        <div class="card">
-          <h3>⚡ GMI Cloud (Gemini 3.5 Flash-Lite)</h3>
-          <p>Reads dates and wishes, explains each pick. Falls back to rules if it's unavailable.</p>
+        <div class="card card-green">
+          <h3>💬 LINE (Flex, LIFF)</h3>
+          <p>No app, no sign-up. A calendar and buttons, so everyone takes part with a few taps.</p>
         </div>
       </div>
-
-      <div class="speaker-box" style="max-width: 900px;">
-        <div class="speaker-box-header">
-          <span class="speaker-tag">🗣️ Pitch Opening Script (Say this clearly):</span>
-        </div>
-        <div class="speaker-en">
-          "Hello judges! We built <strong>AsobiAgent</strong>, a LINE bot that lets a group of friends decide where to meet and where to eat, without anyone having to be the organizer."
-        </div>
-        <div class="speaker-ja-pill">
-          <div class="speaker-ja-text">「こんにちは！私たちは、LINEグループのお出かけ計画を幹事なしで決められる『AsobiAgent』を開発しました。」</div>
-          <div class="speaker-ja-romaji">"Konnichiwa! Watashitachi wa, LINE group no odekake keikaku wo kanji nashi de kimerareru 'AsobiAgent' wo kaihatsu shimashita."</div>
-        </div>
+      <div class="speaker-cheat-box" style="max-width: 1000px;">
+        <div class="label">🗣️ Opening line</div>
+        <p>"Hi! We built AsobiAgent, which lets a LINE group plan an outing without anyone having to organize it."</p>
+        <p class="romaji">JA: 「こんにちは！LINEグループのお出かけ計画を、幹事なしで決められる『AsobiAgent』を開発しました。」</p>
       </div>
     </section>
 
-    <!-- SLIDE 2: The Real-World Problem -->
+    <!-- SLIDE 2: Problem -->
     <section class="slide">
-      <div class="slide-category">Criterion 1: Real-World Problem (現場起点の切実な課題)</div>
-      <h1 class="slide-title">Planning Tokyo Outings is <span>Exhausting</span></h1>
-
+      <div class="slide-category">The problem</div>
+      <h1 class="slide-title">With friends, <span>deciding</span> is the hard part</h1>
       <div class="grid-3">
         <div class="card">
-          <h3>😫 30+ Message Chaos</h3>
-          <p>Endless text threads just to figure out who is coming from where and what people want to eat. Nobody wants to be the <em>Kanji</em> (organizer).</p>
+          <h3>😫 Dozens of messages</h3>
+          <p>"When are you free?" "Where are you coming from?" "What do you feel like?" Dates, place and restaurant all land on one organizer.</p>
         </div>
         <div class="card">
-          <h3>⚖️ Unfair Commute Times</h3>
-          <p>One friend travels 50 mins while another travels 10 mins. Agreeing on a central station causes silent friction and resentment.</p>
+          <h3>⚖️ Unfair travel</h3>
+          <p>The meeting point ends up near the organizer. Someone always has an hour each way or three transfers.</p>
         </div>
         <div class="card">
-          <h3>☕ Tokyo Weekend Over-Tourism</h3>
-          <p>Major hubs like Shibuya and Shinjuku are packed. Groups end up waiting 45+ minutes in line at crowded cafes without reservations.</p>
+          <h3>🗣️ The loudest voice wins</h3>
+          <p>Asking everyone's tastes is a chore, so a friend who can't eat something goes unnoticed until it's booked.</p>
         </div>
       </div>
-
-      <div class="speaker-box">
-        <div class="speaker-box-header">
-          <span class="speaker-tag">🗣️ Speaker Script:</span>
-        </div>
-        <div class="speaker-en">
-          "When friends plan an outing in Tokyo, it takes 30+ LINE messages, people argue over travel times, and everyone ends up waiting in a 45-minute queue in Shibuya. AsobiAgent takes that work off the organizer."
-        </div>
-        <div class="speaker-ja-pill">
-          <div class="speaker-ja-text">「友達とのお出かけは、LINEのやり取りが多く、移動時間の不満も生まれ、結局混雑に巻き込まれます。AsobiAgentはこの幹事負担をゼロにします。」</div>
-          <div class="speaker-ja-romaji">"Tomodachi to no odekake wa, LINE no yaritori ga ooku, idou jikan no fuman mo umare, kekkyoku konzatsu ni makikomaremasu. AsobiAgent wa kono kanji futan wo zero ni shimasu."</div>
-        </div>
+      <div class="speaker-cheat-box">
+        <div class="label">🗣️ Script</div>
+        <p>"Planning dinner with friends takes dozens of LINE messages. Travel ends up unfair, and nobody really asks what everyone likes. An agent that joins the group takes that work over."</p>
       </div>
     </section>
 
-    <!-- SLIDE 3: Agents -->
+    <!-- SLIDE 3: The flow -->
     <section class="slide">
-      <div class="slide-category">Criterion 2: Multi-Step Autonomous Workflow (複数ステップの自律実行)</div>
-      <h1 class="slide-title">4 Agents, <span>Inside the Group Chat</span></h1>
+      <div class="slide-category">The solution</div>
+      <h1 class="slide-title">Inside the group, <span>start to finish</span></h1>
+      <div class="steps">
+        <div class="step"><div class="who human">People</div><h4>① Activate</h4><p>A member verified with an invite code taps a button in the group</p></div>
+        <div class="step"><div class="who ai">AI</div><h4>② Date poll</h4><p>Candidate days on a calendar, everyone marks ○△×. Closes itself once all have answered</p></div>
+        <div class="step"><div class="who human">People</div><h4>③ Profile</h4><p>Likes, dislikes and home station, set once with taps</p></div>
+        <div class="step"><div class="who ai">AI</div><h4>④ Station & places</h4><p>A fair meeting station and six places covering everyone's tastes, with Gemini's reasons</p></div>
+        <div class="step"><div class="who human">People</div><h4>⑤ Vote</h4><p>Vote for as many as you like. Unanimous means decided. Members can suggest places</p></div>
+        <div class="step"><div class="who both">AI → People</div><h4>⑥ Booking prep</h4><p>A dated call script and tap-to-call. People make the call and book</p></div>
+      </div>
+      <p class="slide-content note">Above the input box, only the buttons that make sense right now appear (quick replies). No commands to learn.</p>
+      <div class="speaker-cheat-box">
+        <div class="label">🗣️ Script</div>
+        <p>"Once AsobiAgent joins the group, it walks everyone through the date poll, the meeting station, the shortlist, the vote and booking prep. The AI does the legwork; people decide."</p>
+      </div>
+    </section>
 
+    <!-- SLIDE 4: Agents -->
+    <section class="slide">
+      <div class="slide-category">Autonomy</div>
+      <h1 class="slide-title">Four agents that <span>read the situation</span></h1>
       <div class="grid-4">
-        <div class="card">
-          <div style="color: #38BDF8; font-size: 11px; font-weight: bold; margin-bottom: 4px;">AGENT 1</div>
-          <h3>📅 Who, From Where, When</h3>
-          <p>Reads only the messages of people who joined the plan. Stations are checked against Ekispert's station list; dates and wishes go through the LLM.</p>
+        <div class="agent-box" style="border-color: var(--accent-purple);">
+          <div class="tag purple">Agent 1 · Gemini</div>
+          <h4>📅 Dates & wishes</h4>
+          <p>Turns chat into fixed fields: day, time, wishes. When everyone has marked ○△×, it closes the poll itself and starts planning on the best day.</p>
         </div>
-        <div class="card" style="border-color: #38BDF8;">
-          <div style="color: #38BDF8; font-size: 11px; font-weight: bold; margin-bottom: 4px;">AGENT 2 (EKISPERT)</div>
-          <h3>🚇 Fair Meeting Station</h3>
-          <p>One range search returns every station all members can reach, with each person's average minutes. The shortest worst-case trip wins.</p>
+        <div class="agent-box" style="border-color: var(--accent-blue);">
+          <div class="tag">Agent 2 · Ekispert</div>
+          <h4>🚇 Fair meeting station</h4>
+          <p>One range search returns every reachable station with each person's average time. Ranks by farthest person, then spread, then average.</p>
         </div>
-        <div class="card">
-          <div style="color: #38BDF8; font-size: 11px; font-weight: bold; margin-bottom: 4px;">AGENT 3</div>
-          <h3>🌿 Real Venues</h3>
-          <p>Real HotPepper venues plus places Time Out has covered. Places closed at the planned time are dropped; crowding is labelled as an estimate.</p>
+        <div class="agent-box" style="border-color: var(--accent-purple);">
+          <div class="tag purple">Agent 3 · Gemini</div>
+          <h4>🍽 Places</h4>
+          <p>Six places from HotPepper and Time Out covering everyone's likes. Drops anyone's dislikes and places closed at the planned time. Gemini writes why (✨).</p>
         </div>
-        <div class="card" style="border-color: #06C755;">
-          <div style="color: #06C755; font-size: 11px; font-weight: bold; margin-bottom: 4px;">AGENT 4</div>
-          <h3>📝 Ready to Book</h3>
-          <p>The booking page, a call script with one-tap dialing, and an AI agent that fills a (demo) reservation form. It never calls or books on its own.</p>
+        <div class="agent-box" style="border-color: var(--accent-green);">
+          <div class="tag green">Agent 4 · People decide</div>
+          <h4>📞 Booking prep</h4>
+          <p>A call script with date and party size, a call button and the booking page. The form-filling agent (Playwright + Gemini) only fills a demo form.</p>
         </div>
       </div>
-
-      <div class="speaker-box">
-        <div class="speaker-box-header">
-          <span class="speaker-tag">🗣️ Speaker Script:</span>
-        </div>
-        <div class="speaker-en">
-          "Four agents work inside the chat: Agent 1 reads where people are coming from, Agent 2 finds the fairest station with Ekispert, Agent 3 picks real venues for the group to vote on, and Agent 4 gets everything ready to book. The organizer makes the call."
-        </div>
-        <div class="speaker-ja-pill">
-          <div class="speaker-ja-text">「雑談から出発駅を読み取り、駅すぱあとで公平な集合駅を決め、実在のお店を投票で選び、予約の準備までを自動で行います。」</div>
-          <div class="speaker-ja-romaji">"Zatsudan kara shuppatsu-eki wo yomitori, Ekisupaato de kouhei na shuugou-eki wo kime, jitsuzai no omise wo touhyou de erabi, yoyaku no junbi made wo jidou de okonaimasu."</div>
-        </div>
+      <div class="grid-3" style="margin-top: 18px;">
+        <div class="mini">🧭 The bot decides the next step and shows only those buttons</div>
+        <div class="mini">🔎 Date set and stations known: it searches on its own</div>
+        <div class="mini">🔁 Say "something Japanese" and it re-reads and searches again</div>
+      </div>
+      <div class="speaker-cheat-box">
+        <div class="label">🗣️ Script</div>
+        <p>"Four agents watch the group and decide the next step: close the poll when everyone has answered, search as soon as the stations are known, and explain each place with Gemini."</p>
       </div>
     </section>
 
-    <!-- SLIDE 4: Ekispert -->
+    <!-- SLIDE 5: Control -->
     <section class="slide">
-      <div class="slide-category">Hackathon Compliance & API Integrity</div>
-      <h1 class="slide-title">Strict Compliance: <span>Non-Timetable Usage</span></h1>
-
+      <div class="slide-category">Control, observability, security</div>
+      <h1 class="slide-title">Autonomous, but <span>on a leash</span></h1>
       <div class="grid-2">
-        <div class="card" style="border-color: #38BDF8;">
-          <h3>🛡️ Only Timetable-Free Tools</h3>
-          <p style="margin-bottom: 12px;">No timetable or departure-time searches (ダイヤ情報不使用).</p>
-          <ul style="padding-left: 20px; font-size: 13.5px; line-height: 1.8; color: #CBD5E1;">
-            <li><code>ekispert_api_search_ranges</code> with averaged waits: one call gives every member's average minutes</li>
-            <li><code>ekispert_api_get_stations</code> confirms that 「〇〇から」 is a real station</li>
-            <li>Results are cached, so repeat questions cost nothing</li>
+        <div class="card card-green">
+          <h3>🧭 People decide, nothing runs away</h3>
+          <ul class="feature-list">
+            <li><span class="icon-bullet">📞</span><span><strong>The AI never calls or books.</strong> It prepares a script and a call button</span></li>
+            <li><span class="icon-bullet">🔑</span><span><strong>Invite only.</strong> 1 place, 3 searches, 7 days and 10 people per group</span></li>
+            <li><span class="icon-bullet">🧾</span><span><strong>Daily caps</strong> (LLM 300, searches 100, Places 30) and budget alerts</span></li>
+            <li><span class="icon-bullet">🛡</span><span>Signed webhooks. Duplicate events and stale buttons are ignored</span></li>
           </ul>
         </div>
-        <div class="card" style="border-color: #06C755;">
-          <h3>⚖️ How "Fair" Is Decided</h3>
-          <p style="margin-bottom: 8px;">1) shortest worst-case trip, 2) then the smallest gap between members, 3) then the lowest average.</p>
-          <div style="background: #0B0F19; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 12.5px; color: #4ADE80; line-height: 1.6;">
-            • Yokohama: 42 mins<br>
-            • Kichijoji: 39 mins<br>
-            • Nakameguro: 40 mins<br>
-            • Kashiwa: 44 mins<br>
-            ➔ Meeting station: <strong>Akihabara (max 44 min, 5 min gap)</strong>
+        <div class="card card-purple">
+          <h3>🔎 Don't over-trust the LLM, and see what it does</h3>
+          <ul class="feature-list">
+            <li><span class="icon-bullet">🧱</span><span><strong>The LLM only picks from candidate ids and fills fixed fields.</strong> Everything is checked against real data, so an injected prompt can't invent a place or an action</span></li>
+            <li><span class="icon-bullet">🔁</span><span><strong>Vertex AI → GMI Cloud → rules.</strong> If the AI stops, the group doesn't</span></li>
+            <li><span class="icon-bullet">📈</span><span>No chat content in logs: only event types, which model answered in how long, and errors</span></li>
+            <li><span class="icon-bullet">📊</span><span>The admin sees today's usage with <code>/stats</code></span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="speaker-cheat-box">
+        <div class="label">🗣️ Script</div>
+        <p>"The agents act on their own, but they never call or book. The LLM can only choose from real candidates, so prompt injection can't create a fake place. Caps and fallbacks keep it running and within budget."</p>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: Privacy -->
+    <section class="slide">
+      <div class="slide-category">Privacy</div>
+      <h1 class="slide-title"><span>Doesn't read</span> until called, <span>deletes</span> when done</h1>
+      <div class="grid-4">
+        <div class="agent-box">
+          <h4>🙈 Not listening</h4>
+          <p>Idle chat is dropped unread. While gathering, only participants' messages are read.</p>
+        </div>
+        <div class="agent-box">
+          <h4>🔐 Anonymous IDs</h4>
+          <p>LINE user and group IDs are HMAC-hashed before they are stored.</p>
+        </div>
+        <div class="agent-box">
+          <h4>🧹 Deleted automatically</h4>
+          <p>Chat goes after the search, names and votes at the decision. Plans 7 days, polls 14, profiles 180, or delete any time.</p>
+        </div>
+        <div class="agent-box">
+          <h4>🤐 No names to Gemini</h4>
+          <p>The model sees counts like "2 like yakiniku". Chat lines are labelled "participant 1", not by name.</p>
+        </div>
+      </div>
+      <div class="speaker-cheat-box">
+        <div class="label">🗣️ Script</div>
+        <p>"It doesn't read the chat until it's called. IDs are anonymized, and once a place is decided, names and votes are deleted and the bot leaves the group."</p>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: Architecture -->
+    <section class="slide slide-arch">
+      <div class="slide-category">Architecture</div>
+      <img class="arch" src="/static/architecture_en.svg" alt="AsobiAgent architecture diagram">
+      <div class="speaker-cheat-box">
+        <div class="label">🗣️ Script</div>
+        <p>"LINE webhooks land on Cloud Run, which combines Gemini on Vertex AI, Ekispert and HotPepper. Data lives in Firestore and expires on its own."</p>
+      </div>
+    </section>
+
+    <!-- SLIDE 8: Ekispert -->
+    <section class="slide">
+      <div class="slide-category">Ekispert API (MCP)</div>
+      <h1 class="slide-title">One range search, <span>a fair meeting station</span></h1>
+      <div class="grid-2">
+        <div class="card card-highlight">
+          <h3>🛡️ Timetable-free features only</h3>
+          <ul class="feature-list" style="margin-top: 10px;">
+            <li><span class="icon-bullet">✅</span> <span><strong>No timetable (ダイヤ) search</strong></span></li>
+            <li><span class="icon-bullet">✅</span> <span>One <code>ekispert_api_search_ranges</code> call gives everyone's average travel time</span></li>
+            <li><span class="icon-bullet">✅</span> <span>Names via <code>get_stations</code>, location via <code>get_stations_from_geo</code> (cached 90 days)</span></li>
+          </ul>
+        </div>
+        <div class="card card-green">
+          <h3>⚖️ How it chooses</h3>
+          <p style="margin-bottom: 12px;">① Shortest time for the farthest person → ② then the smallest spread → ③ then the lowest average.</p>
+          <div class="mono">
+            Yokohama 42 · Kichijoji 39 · Nakameguro 40 · Kashiwa 44 min<br>
+            ➔ Meet at Akihabara: max 44 min, spread 5 (a real Ekispert result)
           </div>
         </div>
       </div>
-
-      <div class="speaker-box">
-        <div class="speaker-box-header">
-          <span class="speaker-tag">🗣️ Speaker Script:</span>
-        </div>
-        <div class="speaker-en">
-          "We don't use any timetable searches. A single range search tells us every station the whole group can reach and each person's average travel time, so we pick the station where the person with the longest trip has it easiest."
-        </div>
-        <div class="speaker-ja-pill">
-          <div class="speaker-ja-text">「時刻指定のダイヤ検索は使っていません。範囲探索を1回呼ぶだけで、全員の平均所要時間が分かります。」</div>
-          <div class="speaker-ja-romaji">"Jikoku shitei no daiya kensaku wa tsukatte imasen. Han'i tansaku wo ikkai yobu dake de, zen'in no heikin shoyou jikan ga wakarimasu."</div>
-        </div>
+      <div class="speaker-cheat-box">
+        <div class="label">🗣️ Script</div>
+        <p>"We don't use timetable search. One range search tells us every reachable station and each person's travel time, and we pick the one that's easiest on the farthest person."</p>
       </div>
     </section>
 
-    <!-- SLIDE 5: UX & stack -->
+    <!-- SLIDE 9: Implementation -->
     <section class="slide">
-      <div class="slide-category">Criterion 3: Low-Cognitive-Load UX (認知負荷を下げる体験設計)</div>
-      <h1 class="slide-title">Embedded in <span>LINE</span>, Running on <span>Google Cloud</span></h1>
-
-      <div class="grid-3">
-        <div class="card">
-          <h3>📱 LINE Flex Cards</h3>
-          <p>Join, OK and vote are single taps that show up as the person's own message. The bot only speaks when something changes, and only by reply, so it uses no push quota.</p>
-        </div>
-        <div class="card">
-          <h3>⚡ GMI Cloud</h3>
-          <p>Gemini 3.5 Flash-Lite reads dates and wishes and writes a one-line reason per venue. Capped per day; rule-based fallback if it's down.</p>
-        </div>
-        <div class="card">
-          <h3>☁️ Live on Google Cloud</h3>
-          <p>Cloud Run (the bot), Firestore in Tokyo, and a Cloud Run Job running Playwright for the form agent. Scales to zero when idle.</p>
-        </div>
-      </div>
-
-      <div class="speaker-box">
-        <div class="speaker-box-header">
-          <span class="speaker-tag">🗣️ Speaker Script:</span>
-        </div>
-        <div class="speaker-en">
-          "No app to download and no account to create. It all happens in the LINE group people already use, one tap at a time."
-        </div>
-        <div class="speaker-ja-pill">
-          <div class="speaker-ja-text">「アプリのダウンロードもアカウント登録も不要です。いつものLINEグループで、ボタンを押すだけで決まります。」</div>
-          <div class="speaker-ja-romaji">"Apuri no daunroodo mo akaunto touroku mo fuyou desu. Itsumo no LINE group de, botan wo osu dake de kimarimasu."</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- SLIDE 6: Trust -->
-    <section class="slide">
-      <div class="slide-category">Built to Be Trusted (安心して使える設計)</div>
-      <h1 class="slide-title">Reads Nothing Until Called, <span>Forgets When Done</span></h1>
-
+      <div class="slide-category">Implementation and extensibility</div>
+      <h1 class="slide-title">Runs small, <span>grows as is</span></h1>
       <div class="grid-4">
-        <div class="card">
-          <h3>🔑 Invite Only</h3>
-          <p>Only people verified with a single-use invite code can switch the bot on in a group.</p>
+        <div class="agent-box">
+          <h4>☁️ Serverless</h4>
+          <p>Cloud Run (scales to zero), Firestore (TTL), Secret Manager, Cloud Build. No secrets in the code.</p>
         </div>
-        <div class="card">
-          <h3>🙈 Quiet by Default</h3>
-          <p>Idle chat is dropped unread. While planning, only participants' messages are read.</p>
+        <div class="agent-box">
+          <h4>🧪 Tested</h4>
+          <p>76 automated tests: the whole group flow, caps, deletion, fallbacks, the judges' code.</p>
         </div>
-        <div class="card">
-          <h3>🧹 Deleted at the Decision</h3>
-          <p>LINE IDs are stored only as hashes. Chat text goes after the search; names and votes at the decision.</p>
+        <div class="agent-box">
+          <h4>💴 Predictable cost</h4>
+          <p>One or two Gemini calls per search. Replies only, so zero LINE push messages. Caps prevent runaway bills.</p>
         </div>
-        <div class="card">
-          <h3>🧾 Bounded Cost</h3>
-          <p>One venue, three searches and seven days per group, plus daily caps for the whole service.</p>
+        <div class="agent-box">
+          <h4>🔧 Easy to extend</h4>
+          <p>Limits are environment variables. Add Time Out cities to go beyond Tokyo. Booking channels can be swapped in.</p>
         </div>
       </div>
-
-      <div class="speaker-box">
-        <div class="speaker-box-header">
-          <span class="speaker-tag">🗣️ Speaker Script:</span>
-        </div>
-        <div class="speaker-en">
-          "It's invite-only and reads nothing until someone calls it. Once a venue is decided, personal data is deleted and the bot leaves the group."
-        </div>
-        <div class="speaker-ja-pill">
-          <div class="speaker-ja-text">「招待制で、呼ばれるまでトークは読みません。お店が決まったら個人の情報は削除し、ボットはグループを退出します。」</div>
-          <div class="speaker-ja-romaji">"Shoutaisei de, yobareru made tooku wa yomimasen. Omise ga kimattara kojin no jouhou wa sakujo shi, botto wa guruupu wo taishutsu shimasu."</div>
-        </div>
+      <div class="card card-green" style="margin-top: 18px;">
+        <p><strong>Tested with real friends:</strong> from the date poll to the meeting station, the decision and the call script, all inside LINE. What the test turned up (no date in the script, unclear next step) was fixed the same day.</p>
+      </div>
+      <div class="speaker-cheat-box">
+        <div class="label">🗣️ Script</div>
+        <p>"It runs on Cloud Run and scales to zero, and the caps keep costs predictable. Real friends used it, and we fixed what they ran into right away."</p>
       </div>
     </section>
 
-    <!-- SLIDE 7: Live Demo -->
+    <!-- SLIDE 10: Demo -->
     <section class="slide">
-      <div class="slide-category">Criterion 5: High-Impact Demo (一目で伝わるデモ)</div>
-      <h1 class="slide-title">Let's Watch the <span>Live Demo</span>!</h1>
-
-      <div class="grid-3" style="margin-bottom: 24px;">
-        <div class="card" style="border-color: #06C755;">
-          <h3>1. Stations From Chat</h3>
-          <p>Four friends from Yokohama, Nakameguro, Kichijoji and Kashiwa, checked against Ekispert's station list.</p>
+      <div class="slide-category">Demo</div>
+      <h1 class="slide-title">Let's see the <span>demo</span></h1>
+      <div class="grid-3" style="margin-bottom: 20px;">
+        <div class="card card-green">
+          <h3>1. Date poll</h3>
+          <p>Candidate days on a calendar, everyone marks ○△×, and it closes itself</p>
         </div>
-        <div class="card" style="border-color: #38BDF8;">
-          <h3>2. Fair Meeting Station</h3>
-          <p>The station and everyone's average travel time, from Ekispert.</p>
+        <div class="card card-highlight">
+          <h3>2. Station and six places</h3>
+          <p>From profiles: a fair meeting station and places for everyone's tastes</p>
         </div>
-        <div class="card" style="border-color: #FBBF24;">
-          <h3>3. Venue and Booking Kit</h3>
-          <p>Pick a real venue: booking page, call script, and the AI form agent (demo).</p>
+        <div class="card card-purple">
+          <h3>3. Vote and booking prep</h3>
+          <p>Vote for any number. Once decided, a dated script and tap-to-call</p>
         </div>
       </div>
-
-      <div style="text-align: center;">
-        <a href="/" target="_blank" class="btn-demo" style="font-size: 16px; padding: 12px 30px; display: inline-block;">
-          ▶ Open Live Demo
+      <div style="text-align: center; margin-top: 10px;">
+        <a href="/" target="_blank" class="btn-demo" style="font-size: 16px; padding: 12px 28px; display: inline-block;">
+          ▶ Open the web demo
         </a>
       </div>
-
-      <div class="speaker-box">
-        <div class="speaker-box-header">
-          <span class="speaker-tag">🗣️ Final Transition (Say this to launch the demo):</span>
-        </div>
-        <div class="speaker-en">
-          "Now, let's watch AsobiAgent in action with a live LINE demonstration!"
-        </div>
-        <div class="speaker-ja-pill">
-          <div class="speaker-ja-text">「それでは、実際にLINE上で動くAsobiAgentのデモ実演をご覧ください！」</div>
-          <div class="speaker-ja-romaji">"Soredewa, jissai ni LINE-jou de ugoku AsobiAgent no demo jitsuen wo goran kudasai!"</div>
-        </div>
+      <div class="speaker-cheat-box">
+        <div class="label">🗣️ Closing line (into the demo)</div>
+        <p>"Now let's see AsobiAgent working in a real LINE group!"</p>
+        <p class="romaji">JA: 「それでは、実際にLINEグループで動くAsobiAgentをご覧ください！」</p>
       </div>
     </section>
 
   </main>
 
   <script>
+    // ← → / Space to move, N to show or hide the speaker notes (hidden for recording), F for full screen.
     const slides = document.querySelectorAll('.slide');
     const indicator = document.getElementById('slideIndicator');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
     let current = 0;
 
     function showSlide(idx) {
-      if (idx < 0) idx = 0;
-      if (idx >= slides.length) idx = slides.length - 1;
+      idx = Math.max(0, Math.min(slides.length - 1, idx));
       slides[current].classList.remove('active');
       current = idx;
       slides[current].classList.add('active');
       indicator.textContent = `${current + 1} / ${slides.length}`;
     }
 
-    prevBtn.addEventListener('click', () => showSlide(current - 1));
-    nextBtn.addEventListener('click', () => showSlide(current + 1));
+    function setNotes(on) {
+      document.body.classList.toggle('notes-off', !on);
+      try { localStorage.setItem('asobiDeckNotes', on ? 'on' : 'off'); } catch (e) { /* storage blocked */ }
+    }
+    let notesOn = true;
+    try { notesOn = localStorage.getItem('asobiDeckNotes') !== 'off'; } catch (e) { /* storage blocked */ }
+    if (new URLSearchParams(location.search).get('notes') === 'off') notesOn = false;
+    setNotes(notesOn);
+
+    document.getElementById('prevBtn').addEventListener('click', () => showSlide(current - 1));
+    document.getElementById('nextBtn').addEventListener('click', () => showSlide(current + 1));
+    document.getElementById('notesBtn').addEventListener('click', () => { notesOn = !notesOn; setNotes(notesOn); });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
-        showSlide(current + 1);
-      } else if (e.key === 'ArrowLeft') {
-        showSlide(current - 1);
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') showSlide(current + 1);
+      else if (e.key === 'ArrowLeft') showSlide(current - 1);
+      else if (e.key === 'n' || e.key === 'N') { notesOn = !notesOn; setNotes(notesOn); }
+      else if (e.key === 'f' || e.key === 'F') {
+        if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.();
       }
     });
   </script>

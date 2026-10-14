@@ -1,7 +1,7 @@
 # AsobiAgent: deployment guide
 
-> **Status (2026-10-09): ready to deploy, not deployed.** The code, tests and `deploy/deploy.sh` are done.
-> Creating the Google Cloud project needs your go-ahead, because it attaches to your billing account.
+> **Status (2026-10-15): deployed** to project `asobi-agent-dw9h` (Cloud Run service `asobi-agent`, revision 10+).
+> Submitted to the hackathon from `main`; keep `main` and the deployment unchanged until 2026-12-01 (judging).
 
 ## 0. What will run
 
@@ -13,6 +13,7 @@
 | Keys | Secret Manager | ~¥0 | ~9 secrets. |
 | Images | Artifact Registry `asobi` | ~¥30/month | The Playwright image is ~2 GB; a cleanup policy keeps the 3 newest. |
 | Phone numbers | Places API (New) | ¥0 inside the free monthly usage | Capped in code: `DAILY_PLACES_LIMIT` (30/day). |
+| LLM | Vertex AI, Gemini 3.5 Flash-Lite | per call, a few yen a day at most | Service-account auth, no key. Capped: `DAILY_LLM_LIMIT` (300/day). GMI Cloud is the fallback. |
 | Budgets | "AsobiAgent credit burn" ¥1,000 (before credits), "AsobiAgent real money" ¥100 (after credits) | — | Email alerts only, same pattern as kechi-plus. |
 
 It gets its **own project** (`asobi-agent-xxxx`) on the same billing account as kechi-plus, so its costs and
@@ -28,7 +29,8 @@ flowchart LR
     R -->|"station check, hub"| E["駅すぱあと MCP"]
     R -->|"venues near hub"| H["HotPepper"]
     R -->|"phone number (decision only)"| G["Places API"]
-    R -.->|"optional: read chat, rank venues"| M["GMI Cloud LLM"]
+    R -.->|"read chat, explain picks"| V["Vertex AI<br/>Gemini 3.5 Flash-Lite"]
+    R -.->|"fallback if Vertex fails"| M["GMI Cloud"]
     R -->|"tap: AIに入力を任せる"| J["Cloud Run Job<br/>asobi-form-agent"]
     J -->|"fills our demo form"| R
 ```
@@ -69,10 +71,15 @@ export PROJECT_ID=asobi-agent-$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c
 | `line-admin-user-id` | `LINE_ADMIN_USER_ID` | You: can issue invite codes, always verified |
 | `ekispert-api-key` | `EKISPERT_API_ACCESS_KEY` | |
 | `hotpepper-api-key` | `HOTPEPPER_API_KEY` | |
-| `gmi-api-key` | `GMI_API_KEY` | Optional. Without credit the bot falls back to rules. |
+| `gmi-api-key` | `GMI_API_KEY` | Optional fallback when Vertex AI fails. Without either, the bot uses rules. |
 | `places-api-key` | created by `setup` | Restricted to Places API (New) |
 | `app-secret` | generated | Hashes LINE IDs and signs links. **Changing it orphans every stored record.** |
 | `admin-api-token` | generated | Unlocks free-text chat on the web simulator: open `/?admin=<token>` once |
+
+Vertex AI needs no secret: `setup` enables `aiplatform.googleapis.com` and grants `roles/aiplatform.user` to both
+service accounts. The model and location are `VERTEX_MODEL` (default `google/gemini-3.5-flash-lite`) and
+`VERTEX_LOCATION` (`global`); `VERTEX_PROJECT` defaults to the service's own project, and an empty project turns
+Vertex off.
 
 To read the admin token: `gcloud secrets versions access latest --secret=admin-api-token --project=$PROJECT_ID`.
 
@@ -82,6 +89,10 @@ To read the admin token: `gcloud secrets versions access latest --secret=admin-a
 2. DM it `/invite 5`. It replies with five single-use codes (valid 14 days). `/stats` and `/limits` also work.
 3. Give a code to a friend. They add the bot and send the code.
 4. Make a group, invite the bot, tap 有効化する, then `@AsobiAgent 土曜13時からランチ` (or tap プランを立てる).
+
+**Judges' code:** `/judge 30` makes one code that up to 30 people can redeem, valid 60 days (`JUDGE_CODE_DAYS`).
+The same code unlocks free-text chat on the web demo (the 審査用コード box). A group whose only member is the
+person planning (a ひとりグループ) can plan alone, so one judge can try the whole flow.
 
 ## 5. Limits (environment variables on the service)
 
@@ -125,5 +136,6 @@ Change one with `gcloud run services update asobi-agent --update-env-vars=SEARCH
 - **LINE PC doesn't send user IDs to bots in groups**, so buttons only work from the phone app (the bot says so).
 - **Cold start:** the first message after a quiet period takes a few extra seconds. `--min-instances=1` would fix
   that but bills all the time.
-- **GMI credit:** a 402 "Insufficient balance" from GMI means the LLM steps silently use the rule-based fallback.
-  Check the GMI console balance (the key is shared with kechi-plus).
+- **LLM provider:** logs say `LLM call served by vertex (...) in 1.3s`. If Vertex fails, the same call goes to GMI;
+  a 402 "Insufficient balance" there means both are out and the rule-based fallback runs. Only
+  `Qwen/Qwen3.8-Flash` is refused on the GMI account; Gemini models work.

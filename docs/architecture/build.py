@@ -1,7 +1,7 @@
 """
 Draws the architecture diagram (docs/architecture/architecture_{ja,en}.svg) for the submission and the decks.
 
-    python docs/architecture/build.py            # writes the SVGs
+    python docs/architecture/build.py            # writes the SVGs (here and in static/ for the decks)
     python docs/architecture/build.py --png      # and renders PNGs with headless Chrome (macOS path)
 
 Plain SVG on a fixed 1920x1080 grid, colours from the pitch deck.
@@ -250,7 +250,9 @@ def build(lang: str) -> str:
 
 def main() -> None:
     for lang in TEXT:
-        (HERE / f"architecture_{lang}.svg").write_text(build(lang), encoding="utf-8")
+        svg = build(lang)
+        (HERE / f"architecture_{lang}.svg").write_text(svg, encoding="utf-8")
+        (HERE.parent.parent / "static" / f"architecture_{lang}.svg").write_text(svg, encoding="utf-8")   # for the decks
     if "--png" in sys.argv:
         chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
         for lang in TEXT:
