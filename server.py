@@ -24,6 +24,9 @@ from services.store import MemoryStore
 from web import agent_pages, liff, simulator
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+# HTTP clients log every request URL at INFO, and HotPepper takes its API key in the URL: keep them to warnings.
+for noisy in ("httpx", "httpx2", "httpcore", "httpcore2"):
+    logging.getLogger(noisy).setLevel(logging.WARNING)
 log = logging.getLogger("server")
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")

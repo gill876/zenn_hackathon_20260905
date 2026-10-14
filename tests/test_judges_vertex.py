@@ -323,3 +323,11 @@ def test_two_people_with_the_same_name_both_count():
     kinds = {k["id"]: k for k in taste["kinds"]}
     assert len(kinds["yakiniku"]["likers"]) == 2 and len(kinds["cafe"]["likers"]) == 1
     assert [k["id"] for k in taste["kinds"]][0] == "yakiniku"        # the most-liked kind leads
+
+
+def test_http_client_logs_never_carry_request_urls():
+    """HotPepper puts its API key in the query string; httpx logs URLs at INFO."""
+    import logging
+    import server  # noqa: F401  (configures logging on import)
+    for name in ("httpx", "httpx2", "httpcore"):
+        assert logging.getLogger(name).getEffectiveLevel() >= logging.WARNING

@@ -99,6 +99,8 @@ async def run_agent(run_id: str, store, llm: LLMClient, base_url: str) -> None:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
+    for noisy in ("httpx", "httpx2", "httpcore", "httpcore2"):   # request URLs can carry API keys
+        logging.getLogger(noisy).setLevel(logging.WARNING)
     from config import get_settings
     from services.firestore_store import FirestoreStore
 
