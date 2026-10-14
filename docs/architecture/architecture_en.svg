@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" font-family="'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',system-ui,sans-serif">
+<defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#94A3B8"/></marker><marker id="head-start" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10,0 L0,5 L10,10 z" fill="#94A3B8"/></marker></defs>
+<rect width="1920" height="1080" fill="#0B0F19"/>
+<text x="48" y="66" font-size="34" fill="#F8FAFC" font-weight="700" text-anchor="start">AsobiAgent architecture</text>
+<text x="48" y="100" font-size="17" fill="#94A3B8" font-weight="400" text-anchor="start">Add it to a LINE group. The AI does the legwork; the friends decide.</text>
+<text x="1872" y="66" font-size="15" fill="#94A3B8" font-weight="400" text-anchor="end">5th Agentic AI Hackathon with Google Cloud</text>
+<rect x="48" y="150" width="252" height="140" rx="14" fill="#161F30" stroke="#06C755" stroke-width="1.5"/>
+<text x="68" y="184" font-size="18" fill="#F8FAFC" font-weight="700" text-anchor="start">👥 LINE group</text>
+<text x="68" y="216" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">2–10 friends (or just one)</text>
+<text x="68" y="242" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">Buttons and quick replies</text>
+<rect x="48" y="316" width="252" height="170" rx="14" fill="#161F30" stroke="#06C755" stroke-width="1.5"/>
+<text x="68" y="350" font-size="18" fill="#F8FAFC" font-weight="700" text-anchor="start">📱 LIFF pages in LINE</text>
+<text x="68" y="382" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">Profile: tastes, home station</text>
+<text x="68" y="408" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">Date poll: calendar and ○△×</text>
+<text x="68" y="434" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">LINE ID token proves who</text>
+<rect x="48" y="512" width="252" height="130" rx="14" fill="#161F30" stroke="#23324A" stroke-width="1.5"/>
+<text x="68" y="546" font-size="18" fill="#F8FAFC" font-weight="700" text-anchor="start">🖥 Web demo (judges)</text>
+<text x="68" y="578" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">Scenario replay: no code</text>
+<text x="68" y="604" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">Free text: judges&#x27; code</text>
+<rect x="352" y="150" width="220" height="300" rx="14" fill="#161F30" stroke="#06C755" stroke-width="1.5"/>
+<text x="370" y="184" font-size="18" fill="#06C755" font-weight="700" text-anchor="start">LINE Platform</text>
+<rect x="366" y="200" width="192" height="72" rx="10" fill="#0F1726" stroke="#23324A" stroke-width="1.5"/>
+<text x="380" y="228" font-size="15" fill="#F8FAFC" font-weight="700" text-anchor="start">Messaging API</text>
+<text x="380" y="252" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="start">Signed webhook · replies only</text>
+<rect x="366" y="282" width="192" height="72" rx="10" fill="#0F1726" stroke="#23324A" stroke-width="1.5"/>
+<text x="380" y="310" font-size="15" fill="#F8FAFC" font-weight="700" text-anchor="start">Flex Message</text>
+<text x="380" y="334" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="start">Cards and vote buttons</text>
+<rect x="366" y="364" width="192" height="72" rx="10" fill="#0F1726" stroke="#23324A" stroke-width="1.5"/>
+<text x="380" y="392" font-size="15" fill="#F8FAFC" font-weight="700" text-anchor="start">LIFF · LINE Login</text>
+<text x="380" y="416" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="start">Issues ID tokens</text>
+<line x1="300" y1="220" x2="352" y2="220" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)" marker-start="url(#head-start)"/>
+<line x1="300" y1="400" x2="352" y2="400" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)" marker-start="url(#head-start)"/>
+<rect x="640" y="128" width="900" height="744" rx="18" fill="none" stroke="#38BDF8" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="664" y="156" font-size="15" fill="#38BDF8" font-weight="700" text-anchor="start">Google Cloud · asia-northeast1 (Tokyo)</text>
+<rect x="664" y="172" width="852" height="440" rx="14" fill="#161F30" stroke="#06C755" stroke-width="2"/>
+<text x="688" y="206" font-size="18" fill="#F8FAFC" font-weight="700" text-anchor="start">Cloud Run · asobi-agent (FastAPI, scales to zero)</text>
+<text x="688" y="248" font-size="13" fill="#94A3B8" font-weight="700" text-anchor="start">Gate</text>
+<rect x="732" y="228" width="129" height="30" rx="15" fill="#F8717122" stroke="#F8717166"/><text x="796.5" y="247.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">Signed webhook</text>
+<rect x="869" y="228" width="122" height="30" rx="15" fill="#F8717122" stroke="#F8717166"/><text x="930.0" y="247.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">Dedupe events</text>
+<rect x="999" y="228" width="152" height="30" rx="15" fill="#F8717122" stroke="#F8717166"/><text x="1075.0" y="247.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">Invite-only users</text>
+<rect x="1159" y="228" width="159" height="30" rx="15" fill="#F8717122" stroke="#F8717166"/><text x="1238.5" y="247.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">Group + daily caps</text>
+<rect x="1326" y="228" width="182" height="30" rx="15" fill="#F8717122" stroke="#F8717166"/><text x="1417.0" y="247.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">Stale buttons refused</text>
+<rect x="688" y="276" width="84" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="730.0" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">Activate</text>
+<text x="782" y="296" font-size="14" fill="#94A3B8" font-weight="700" text-anchor="middle">→</text>
+<rect x="792" y="276" width="91" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="837.5" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">Date poll</text>
+<text x="893" y="296" font-size="14" fill="#94A3B8" font-weight="700" text-anchor="middle">→</text>
+<rect x="903" y="276" width="84" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="945.0" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">Stations</text>
+<text x="997" y="296" font-size="14" fill="#94A3B8" font-weight="700" text-anchor="middle">→</text>
+<rect x="1007" y="276" width="122" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="1068.0" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">Meeting point</text>
+<text x="1139" y="296" font-size="14" fill="#94A3B8" font-weight="700" text-anchor="middle">→</text>
+<rect x="1149" y="276" width="84" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="1191.0" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">6 places</text>
+<text x="1243" y="296" font-size="14" fill="#94A3B8" font-weight="700" text-anchor="middle">→</text>
+<rect x="1253" y="276" width="54" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="1280.0" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">Vote</text>
+<text x="1317" y="296" font-size="14" fill="#94A3B8" font-weight="700" text-anchor="middle">→</text>
+<rect x="1327" y="276" width="122" height="30" rx="15" fill="#FBBF2422" stroke="#FBBF2466"/><text x="1388.0" y="295.68" font-size="13" fill="#F8FAFC" font-weight="500" text-anchor="middle">Decide, leave</text>
+<rect x="688" y="328" width="189" height="264" rx="12" fill="#0F1726" stroke="#A78BFA" stroke-width="1.5"/>
+<text x="702" y="360" font-size="17" fill="#F8FAFC" font-weight="700" text-anchor="start">① Dates &amp; wishes</text>
+<rect x="702" y="374" width="61" height="26" rx="13" fill="#A78BFA22" stroke="#A78BFA66"/><text x="732.5" y="391.32" font-size="12" fill="#F8FAFC" font-weight="500" text-anchor="middle">Gemini</text>
+<text x="700" y="436" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">• Reads date and wishes</text>
+<text x="700" y="472" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">• Closes the poll itself</text>
+<text x="700" y="508" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">• Plans on the best day</text>
+<text x="700" y="544" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">• Rules if the LLM is down</text>
+<rect x="893" y="328" width="189" height="264" rx="12" fill="#0F1726" stroke="#38BDF8" stroke-width="1.5"/>
+<text x="907" y="360" font-size="17" fill="#F8FAFC" font-weight="700" text-anchor="start">② Meeting point</text>
+<rect x="907" y="374" width="75" height="26" rx="13" fill="#38BDF822" stroke="#38BDF866"/><text x="944.5" y="391.32" font-size="12" fill="#F8FAFC" font-weight="500" text-anchor="middle">Ekispert</text>
+<text x="905" y="436" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">• One range search</text>
+<text x="905" y="472" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">• Farthest person first</text>
+<text x="905" y="508" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">• No timetable search</text>
+<text x="905" y="544" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">• Stations cached 90 days</text>
+<rect x="1098" y="328" width="189" height="264" rx="12" fill="#0F1726" stroke="#A78BFA" stroke-width="1.5"/>
+<text x="1112" y="360" font-size="17" fill="#F8FAFC" font-weight="700" text-anchor="start">③ Places</text>
+<rect x="1112" y="374" width="61" height="26" rx="13" fill="#A78BFA22" stroke="#A78BFA66"/><text x="1142.5" y="391.32" font-size="12" fill="#F8FAFC" font-weight="500" text-anchor="middle">Gemini</text>
+<text x="1110" y="436" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">• Everyone&#x27;s tastes</text>
+<text x="1110" y="472" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">• Drops dislikes, closed</text>
+<text x="1110" y="508" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">• Gemini&#x27;s one-line why ✨</text>
+<text x="1110" y="544" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">• Members can suggest</text>
+<rect x="1303" y="328" width="189" height="264" rx="12" fill="#0F1726" stroke="#06C755" stroke-width="1.5"/>
+<text x="1317" y="360" font-size="17" fill="#F8FAFC" font-weight="700" text-anchor="start">④ Booking prep</text>
+<rect x="1317" y="374" width="110" height="26" rx="13" fill="#06C75522" stroke="#06C75566"/><text x="1372.0" y="391.32" font-size="12" fill="#F8FAFC" font-weight="500" text-anchor="middle">Humans decide</text>
+<text x="1315" y="436" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">• Call script, tap to call</text>
+<text x="1315" y="472" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">• Booking page link</text>
+<text x="1315" y="508" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">• People call and book</text>
+<text x="1315" y="544" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">• Form filling: demo only</text>
+<rect x="664" y="640" width="220" height="210" rx="14" fill="#161F30" stroke="#A78BFA" stroke-width="1.5"/>
+<text x="678" y="672" font-size="16" fill="#A78BFA" font-weight="700" text-anchor="start">Vertex AI</text>
+<text x="678" y="704" font-size="14" fill="#F8FAFC" font-weight="400" text-anchor="start">Gemini 3.5 Flash-Lite</text>
+<text x="678" y="734" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">Reads dates, writes reasons</text>
+<text x="678" y="764" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">Max 300 calls a day</text>
+<rect x="898" y="640" width="200" height="210" rx="14" fill="#161F30" stroke="#38BDF8" stroke-width="1.5"/>
+<text x="912" y="672" font-size="16" fill="#38BDF8" font-weight="700" text-anchor="start">Cloud Run Jobs</text>
+<text x="912" y="704" font-size="14" fill="#F8FAFC" font-weight="400" text-anchor="start">Form-filling agent</text>
+<text x="912" y="734" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">Playwright + Gemini</text>
+<text x="912" y="764" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">Demo form only</text>
+<rect x="1112" y="640" width="200" height="210" rx="14" fill="#161F30" stroke="#FBBF24" stroke-width="1.5"/>
+<text x="1126" y="672" font-size="16" fill="#FBBF24" font-weight="700" text-anchor="start">Firestore (Tokyo)</text>
+<text x="1126" y="704" font-size="14" fill="#F8FAFC" font-weight="400" text-anchor="start">TTL auto-delete</text>
+<text x="1126" y="734" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">LINE IDs HMAC-hashed</text>
+<text x="1126" y="764" font-size="14" fill="#94A3B8" font-weight="400" text-anchor="start">Chat deleted after search</text>
+<rect x="1326" y="640" width="190" height="210" rx="14" fill="#161F30" stroke="#94A3B8" stroke-width="1.5"/>
+<text x="1340" y="672" font-size="16" fill="#F8FAFC" font-weight="700" text-anchor="start">Operations</text>
+<text x="1340" y="700" font-size="13" fill="#F8FAFC" font-weight="400" text-anchor="start">Secret Manager</text>
+<text x="1340" y="728" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">Cloud Build</text>
+<text x="1340" y="756" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">Artifact Registry</text>
+<text x="1340" y="784" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">Cloud Logging</text>
+<text x="1340" y="812" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">Budget alerts</text>
+<line x1="774" y1="612" x2="774" y2="640" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/>
+<line x1="998" y1="612" x2="998" y2="640" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/><text x="1022" y="631" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="middle">starts</text>
+<line x1="1212" y1="612" x2="1212" y2="640" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/>
+<line x1="898" y1="745" x2="884" y2="745" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/>
+<line x1="572" y1="268" x2="664" y2="268" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/><text x="606" y="258" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="middle">Webhook</text>
+<line x1="664" y1="318" x2="572" y2="318" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/><text x="606" y="340" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="middle">Reply</text>
+<line x1="300" y1="476" x2="664" y2="476" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/><text x="470" y="466" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="middle">LIFF API (ID token checked)</text>
+<line x1="300" y1="577" x2="664" y2="577" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/><text x="470" y="567" font-size="12" fill="#94A3B8" font-weight="400" text-anchor="middle">/api (judges&#x27; code)</text>
+<text x="1580" y="140" font-size="15" fill="#94A3B8" font-weight="700" text-anchor="start">External APIs</text>
+<rect x="1580" y="156" width="292" height="96" rx="14" fill="#161F30" stroke="#38BDF8" stroke-width="1.5"/>
+<text x="1598" y="194" font-size="16" fill="#F8FAFC" font-weight="700" text-anchor="start">Ekispert API (MCP)</text>
+<text x="1598" y="222" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">Stations, range search</text>
+<rect x="1580" y="268" width="292" height="96" rx="14" fill="#161F30" stroke="#23324A" stroke-width="1.5"/>
+<text x="1598" y="306" font-size="16" fill="#F8FAFC" font-weight="700" text-anchor="start">HotPepper Gourmet</text>
+<text x="1598" y="334" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">Real places, 24 h cache</text>
+<rect x="1580" y="380" width="292" height="96" rx="14" fill="#161F30" stroke="#23324A" stroke-width="1.5"/>
+<text x="1598" y="418" font-size="16" fill="#F8FAFC" font-weight="700" text-anchor="start">Google Places API</text>
+<text x="1598" y="446" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">Phone numbers, suggestions</text>
+<rect x="1580" y="492" width="292" height="96" rx="14" fill="#161F30" stroke="#23324A" stroke-width="1.5"/>
+<text x="1598" y="530" font-size="16" fill="#F8FAFC" font-weight="700" text-anchor="start">Time Out Tokyo</text>
+<text x="1598" y="558" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">Facts and links, indexed at build</text>
+<rect x="1580" y="604" width="292" height="96" rx="14" fill="#161F30" stroke="#A78BFA" stroke-width="1.5"/>
+<text x="1598" y="642" font-size="16" fill="#F8FAFC" font-weight="700" text-anchor="start">GMI Cloud</text>
+<text x="1598" y="670" font-size="13" fill="#94A3B8" font-weight="400" text-anchor="start">Gemini fallback</text>
+<line x1="1516" y1="204" x2="1580" y2="204" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/>
+<line x1="1516" y1="316" x2="1580" y2="316" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/>
+<line x1="1516" y1="428" x2="1580" y2="428" stroke="#94A3B8" stroke-width="2" marker-end="url(#head)"/>
+<line x1="1580" y1="540" x2="1516" y2="540" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#head)"/>
+<line x1="1516" y1="600" x2="1580" y2="646" stroke="#94A3B8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#head)"/>
+<rect x="48" y="900" width="1824" height="128" rx="14" fill="#1A1420" stroke="#F87171" stroke-width="1.5"/>
+<text x="72" y="952" font-size="17" fill="#F87171" font-weight="700" text-anchor="start">Guardrails</text>
+<text x="232" y="948" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ People make the call and book</text>
+<text x="642" y="948" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ Invite only (judges&#x27; code)</text>
+<text x="1052" y="948" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ 1 place, 3 searches, 7 days per group</text>
+<text x="1462" y="948" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ Daily caps: LLM 300, searches 100</text>
+<text x="232" y="994" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ Doesn&#x27;t read chat until called</text>
+<text x="642" y="994" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ Names and votes deleted at the end</text>
+<text x="1052" y="994" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ LLM output limited to known ids, fields</text>
+<text x="1462" y="994" font-size="15" fill="#F8FAFC" font-weight="400" text-anchor="start">✓ Vertex → GMI → rules fallback</text>
+</svg>
