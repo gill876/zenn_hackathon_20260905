@@ -294,6 +294,9 @@
     .mini, .note { font-size: clamp(13px, 0.98vw, 19px); }
     .mono { font-size: clamp(12px, 0.9vw, 17px); }
     .speaker-cheat-box p { font-size: clamp(13px, 0.95vw, 18px); }
+    .cover-grid { display: grid; grid-template-columns: 1fr auto; gap: 4vw; align-items: center; }
+    .cover-shot { height: min(74vh, 880px); border-radius: 22px; border: 1px solid var(--card-border); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55); }
+    @media (max-width: 900px) { .cover-grid { grid-template-columns: 1fr; } .cover-shot { height: auto; width: 70%; justify-self: center; } }
     body.notes-off .speaker-cheat-box { display: none; }
     body.notes-off .slide-arch .arch { max-height: calc(100vh - 54px - 80px); }
     @media (max-width: 900px) {
@@ -327,12 +330,14 @@
 
     <!-- SLIDE 1: Cover -->
     <section class="slide active">
+      <div class="cover-grid">
+      <div>
       <div class="slide-category">5th Agentic AI Hackathon with Google Cloud</div>
       <h1 class="slide-title">AsobiAgent <span>(アソビ・エージェント)</span></h1>
       <p class="slide-content lead">
         Add it to a LINE group. From <strong>dates → meeting station → places → booking prep</strong>, the AI does the legwork, and <strong>the friends decide</strong>.
       </p>
-      <div class="grid-3" style="max-width: 1000px;">
+      <div class="grid-3" >
         <div class="card card-purple">
           <h3>✨ Gemini (Vertex AI)</h3>
           <p>Reads dates and wishes from the chat, and writes a one-line reason for each place based on the group's tastes.</p>
@@ -346,10 +351,13 @@
           <p>No app, no sign-up. A calendar and buttons, so everyone takes part with a few taps.</p>
         </div>
       </div>
-      <div class="speaker-cheat-box" style="max-width: 1000px;">
+      <div class="speaker-cheat-box" >
         <div class="label">🗣️ Opening line</div>
         <p>"Hi! We built AsobiAgent, which lets a LINE group plan an outing without anyone having to organize it."</p>
         <p class="romaji">JA: 「こんにちは！LINEグループのお出かけ計画を、幹事なしで決められる『AsobiAgent』を開発しました。」</p>
+      </div>
+      </div>
+      <img class="cover-shot" src="/static/shots/line_station_places.png" alt="The real LINE group: meeting station and places">
       </div>
     </section>
 
@@ -604,6 +612,7 @@
       current = idx;
       slides[current].classList.add('active');
       indicator.textContent = `${current + 1} / ${slides.length}`;
+      history.replaceState(null, '', `#${current + 1}`);
     }
 
     function setNotes(on) {
@@ -614,6 +623,8 @@
     try { notesOn = localStorage.getItem('asobiDeckNotes') !== 'off'; } catch (e) { /* storage blocked */ }
     if (new URLSearchParams(location.search).get('notes') === 'off') notesOn = false;
     setNotes(notesOn);
+    const startAt = parseInt(location.hash.slice(1), 10);   // #3 opens slide 3
+    if (startAt > 1) showSlide(startAt - 1);
 
     document.getElementById('prevBtn').addEventListener('click', () => showSlide(current - 1));
     document.getElementById('nextBtn').addEventListener('click', () => showSlide(current + 1));
