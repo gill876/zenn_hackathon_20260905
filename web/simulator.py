@@ -172,7 +172,7 @@ async def chat(request: Request, req: ChatRequest, x_admin_token: Optional[str] 
                x_access_code: Optional[str] = Header(default=None)) -> dict[str, Any]:
     deps = _deps(request)
     if not (_is_admin(deps, x_admin_token) or await _is_judge(deps, x_access_code)):
-        raise HTTPException(403, "自由入力には審査用コードが必要です。上の欄に入力してください（シナリオ再生はコードなしで使えます）。")
+        raise HTTPException(403, "自由入力には審査用コードが必要です。メッセージ欄のすぐ上の「審査用コード」に入れてから送ってください（シナリオ再生はコードなしで使えます）。")
     if not await deps.usage.take("simulator"):
         raise HTTPException(429, "本日のデモ実行回数の上限に達しました。")
     return {"status": "ok", **await run_pipeline(deps, req.messages[-30:], use_llm=True)}
