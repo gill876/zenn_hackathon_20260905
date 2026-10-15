@@ -173,6 +173,17 @@ app() {
     --set-env-vars="STORE_BACKEND=firestore,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},REGION=${REGION},FORM_AGENT_MODE=job,FORM_AGENT_JOB=${JOB},LINE_BOT_BASIC_ID=$(env_value LINE_BOT_BASIC_ID),LINE_LOGIN_CHANNEL_ID=$(env_value LINE_LOGIN_CHANNEL_ID),LIFF_ID=$(env_value LIFF_ID),PUBLIC_BASE_URL=${url},GMI_MODEL=$(env_value GMI_MODEL)" \
     --set-secrets="$(secret_flags)"
   echo "Live: $url  (webhook: $url/webhook, privacy policy: $url/privacy)"
+  smoke "$url"
+}
+
+# Pages that must be served after every deploy (a stray ignore rule once dropped the decks from the upload).
+smoke() {
+  local code failed=0
+  for path in / /privacy /presentation_ja.html /presentation_en.html /static/architecture_ja.svg /health; do
+    code=$(curl -s -o /dev/null -w '%{http_code}' "$1$path" || true)
+    [ "$code" = 200 ] || { echo "SMOKE FAIL: $path → $code"; failed=1; }
+  done
+  [ "$failed" = 0 ] && echo "Smoke check: all pages 200" || return 1
 }
 
 agent() {

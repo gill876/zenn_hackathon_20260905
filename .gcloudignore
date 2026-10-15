@@ -13,7 +13,8 @@ tests/
 docs/
 .DS_Store
 *.log
-presentation_en.html
-presentation_ja.html
+# Root copies of the decks only (leading /): the served ones are static/presentation_*.html
+/presentation_en.html
+/presentation_ja.html
 data/timeout_sitemaps.json
 data/timeout_venues.done
