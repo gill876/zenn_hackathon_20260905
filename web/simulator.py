@@ -5,9 +5,12 @@ Public mode replays the three preset group chats through the real pipeline, but 
 and dates are read by rules, the hub comes from Ekispert (cached for 30 days), and venues come from
 HotPepper (cached for 24 hours). So a visitor costs no model credits, and a daily cap bounds the rest.
 Free-text chat runs the full LLM pipeline and needs the admin token or the judges' shared code.
+Like the LINE bot, the venues come six to a page ("別の候補を見る"), and a visitor can add a place by name
+("💡 お店を提案する"), looked up near the meeting station.
 """
 
 import hmac
+import math
 import re
 from typing import Any, Optional
 
@@ -20,6 +23,9 @@ from bot.deps import Deps
 from bot.text_parse import date_hint, hint_text, merge_hints
 from services import line_flex
 from services.ids import normalize_invite_code
+from services.suggest import URL as URL_RE
+from services.suggest import SuggestionError
+from services.suggest import resolve as resolve_suggestion
 
 router = APIRouter(prefix="/api")
 
@@ -47,6 +53,10 @@ SCENARIOS: dict[str, list[dict[str, str]]] = {
 }
 HUB_CACHE_SECONDS = 30 * 86400
 _SHOP_ID = re.compile(r"^(J\d{6,12}|TO[0-9a-f]{12})$")
+PAGE = 6                 # cards per carousel, as in the LINE bot (bot/group.py)
+LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+MAX_SUGGESTIONS = 3      # as in the LINE bot
+DEMO_HINT = "このページでは、投票・別の候補・お店の提案が使えます。"
 
 
 class ScenarioRequest(BaseModel):
@@ -55,6 +65,19 @@ class ScenarioRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[dict[str, str]]
+
+
+class MoreRequest(BaseModel):
+    scenario_id: Optional[str] = None
+    messages: Optional[list[dict[str, str]]] = None
+    page: int = 1
+
+
+class SuggestRequest(BaseModel):
+    text: str
+    hub: dict[str, Any]
+    n: int = 1
+    sender: str = "メンバー"
 
 
 class ReserveRequest(BaseModel):
@@ -90,7 +113,7 @@ async def _cached_hub(deps: Deps, stations: list[dict[str, Any]]) -> Optional[di
     return hub
 
 
-async def run_pipeline(deps: Deps, messages: list[dict[str, str]], use_llm: bool) -> dict[str, Any]:
+async def run_pipeline(deps: Deps, messages: list[dict[str, str]], use_llm: bool, page: int = 0) -> dict[str, Any]:
     logs: list[dict[str, str]] = []
     senders: list[str] = []
     origins: dict[str, dict[str, Any]] = {}
@@ -130,16 +153,21 @@ async def run_pipeline(deps: Deps, messages: list[dict[str, str]], use_llm: bool
     pax = len(senders)
     picks = await spot_agent.shortlist(deps.llm, deps.hotpepper, station, details, pax, use_llm=use_llm,
                                        featured=deps.featured, timeout=deps.timeout)
-    shops = await deps.shops([p["id"] for p in picks[:3]])
-    picks = [p for p in picks[:3] if p["id"] in shops]
-    logs.append({"agent_name": "Agent 3", "step": f"ホットペッパーで{hub['name']}駅周辺のお店を{len(picks)}軒選定"})
+    pages = max(1, math.ceil(len(picks) / PAGE))
+    page = min(max(page, 0), pages - 1)
+    chunk = picks[page * PAGE:(page + 1) * PAGE]
+    shops = await deps.shops([p["id"] for p in chunk])
+    chunk = [p for p in chunk if p["id"] in shops]
+    labels = [LABELS[page * PAGE + i] for i in range(len(chunk))]
+    logs.append({"agent_name": "Agent 3", "step": f"ホットペッパーで{hub['name']}駅周辺のお店を{len(picks)}軒選定（{page + 1}/{pages}ページ目を表示）"})
 
     people = [(name, origins[name]["name"], hub["minutes"].get(origins[name]["name"], 0)) for name in senders if name in origins]
+    carousel = line_flex.venues_carousel(
+        "sim", [shops[p["id"]] for p in chunk], chunk, labels, pages - page - 1, 0,
+        [deps.featured(shops[p["id"]]) for p in chunk], hint=DEMO_HINT)
     result["bot_messages"] = [
         {"type": "flex", "flex": line_flex.hub_card(hub, people, schedule_agent.details_text(details))},
-        {"type": "flex", "flex": line_flex.venues_carousel(
-            "sim", [shops[p["id"]] for p in picks], picks, list("ABC")[:len(picks)], 0, 0,
-            [deps.featured(shops[p["id"]]) for p in picks])},
+        {"type": "flex", "flex": carousel},
     ]
     result["session_state"]["midpoint_data"] = {
         "hub_station": hub["name"], "max_travel_time": hub["max"], "spread_minutes": hub["spread"],
@@ -148,10 +176,12 @@ async def run_pipeline(deps: Deps, messages: list[dict[str, str]], use_llm: bool
                            "transfers": hub["transfers"].get(st, 0)} for name, st, mins in people},
     }
     result["session_state"]["venues"] = [
-        {"id": p["id"], "name": shops[p["id"]]["name"], "reason": p["reason"], "crowd": p["crowd"]} for p in picks]
+        {"id": p["id"], "name": shops[p["id"]]["name"], "reason": p["reason"], "crowd": p["crowd"]} for p in chunk]
     result["plan"] = {"day": details.get("day"), "time": details.get("time"), "pax": pax,
                       "organizer": senders[0], "hub_name": hub["name"],
-                      "walk": {p["id"]: p.get("walk_min") for p in picks}}
+                      "hub": {"name": hub["name"], "lat": station.get("lat"), "lng": station.get("lng")},
+                      "page": page, "pages": pages,
+                      "walk": {p["id"]: p.get("walk_min") for p in chunk}}
     return result
 
 
@@ -176,6 +206,69 @@ async def chat(request: Request, req: ChatRequest, x_admin_token: Optional[str] 
     if not await deps.usage.take("simulator"):
         raise HTTPException(429, "本日のデモ実行回数の上限に達しました。")
     return {"status": "ok", **await run_pipeline(deps, req.messages[-30:], use_llm=True)}
+
+
+async def _authorized(deps: Deps, admin: Optional[str], code: Optional[str]) -> bool:
+    return _is_admin(deps, admin) or await _is_judge(deps, code)
+
+
+@router.post("/more")
+async def more(request: Request, req: MoreRequest, x_admin_token: Optional[str] = Header(default=None),
+               x_access_code: Optional[str] = Header(default=None)) -> dict[str, Any]:
+    """"別の候補を見る": the next page of the same shortlist (the same chat gives the same hub and venues)."""
+    deps = _deps(request)
+    if req.scenario_id is not None:
+        messages, use_llm = SCENARIOS.get(req.scenario_id), False
+        if messages is None:
+            raise HTTPException(404, "unknown scenario")
+    elif req.messages and await _authorized(deps, x_admin_token, x_access_code):
+        messages, use_llm = req.messages[-30:], True
+    else:
+        raise HTTPException(403, "自由入力の続きには審査用コードが必要です。")
+    if not 1 <= req.page <= 10:
+        raise HTTPException(400, "invalid page")
+    if not await deps.usage.take("simulator"):
+        raise HTTPException(429, "本日のデモ実行回数の上限に達しました。LINE版をお試しください。")
+    result = await run_pipeline(deps, messages, use_llm=use_llm, page=req.page)
+    if not result["plan"] or result["plan"]["page"] != req.page:
+        return {"status": "none", "bot_messages": [{"type": "text", "text": "ほかの候補はもうありません。"}]}
+    result["bot_messages"] = result["bot_messages"][1:]   # the hub card was already shown
+    return {"status": "ok", **result}
+
+
+def _valid_hub(hub: dict[str, Any]) -> Optional[dict[str, Any]]:
+    try:
+        lat, lng = float(hub["lat"]), float(hub["lng"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not (20 <= lat <= 46 and 122 <= lng <= 154):
+        return None
+    return {"name": str(hub.get("name") or "")[:20], "lat": lat, "lng": lng}
+
+
+@router.post("/suggest")
+async def suggest(request: Request, req: SuggestRequest) -> dict[str, Any]:
+    """"💡 お店を提案する": a place by name, looked up near the meeting station (HotPepper first, then Places)."""
+    deps = _deps(request)
+    text = req.text.strip()[:60]
+    if not text or URL_RE.search(text):
+        raise HTTPException(400, "Webデモでは、お店の名前で提案してください（例：肉ごこち 秋葉原）。")
+    hub = _valid_hub(req.hub)
+    if hub is None:
+        raise HTTPException(400, "先にシナリオを実行して、集合駅を決めてください。")
+    if not 1 <= req.n <= MAX_SUGGESTIONS:
+        raise HTTPException(400, f"お店の提案は{MAX_SUGGESTIONS}件までです。")
+    if not await deps.usage.take("simulator"):
+        raise HTTPException(429, "本日のデモ実行回数の上限に達しました。LINE版をお試しください。")
+    try:
+        shop = await resolve_suggestion(deps, text, hub)
+    except SuggestionError as e:
+        raise HTTPException(404, e.message)
+    walk = spot_agent.walk_minutes(shop, hub)
+    name = req.sender.strip()[:20] or "メンバー"
+    entry = {"id": shop["id"], "suggested_by": name, "walk_min": walk, "reason": f"{name}さんの提案"}
+    return {"status": "ok", "venue": {"id": shop["id"], "name": shop["name"], "walk_min": walk},
+            "bot_messages": [{"type": "flex", "flex": line_flex.suggestion_card("sim", f"提案{req.n}", shop, entry)}]}
 
 
 @router.post("/reserve")

@@ -60,6 +60,53 @@ def test_simulator_daily_cap():
     assert client.post("/api/scenario", json={"scenario_id": "cafe_girls_3"}).status_code == 429
 
 
+def _venue_labels(flex: dict) -> list[str]:
+    """Card labels (A, B, … / 提案1) in a carousel, skipping the closing "ほかの候補" bubble."""
+    labels = []
+    for b in flex["contents"]["contents"]:
+        first = b["body"]["contents"][0].get("text", "")
+        if b.get("footer") and any(c.get("action", {}).get("data", "").startswith("a=vote") for c in b["footer"]["contents"]):
+            labels.append(first.replace("💡 ", "").split()[0])
+    return labels
+
+
+def test_simulator_pages_through_venues_like_line():
+    client = TestClient(create_app(make_deps()))
+    first = client.post("/api/scenario", json={"scenario_id": "tokyo_meat_4"}).json()
+    plan = first["plan"]
+    assert plan["pages"] >= 2 and plan["page"] == 0
+    assert _venue_labels(first["bot_messages"][1]["flex"]) == list("ABCDEF")
+    assert "別の候補を見る" in json.dumps(first["bot_messages"][1], ensure_ascii=False)
+
+    more = client.post("/api/more", json={"scenario_id": "tokyo_meat_4", "page": 1}).json()
+    assert more["status"] == "ok" and more["plan"]["page"] == 1
+    assert len(more["bot_messages"]) == 1                      # only the carousel; the hub card was shown already
+    labels = _venue_labels(more["bot_messages"][0]["flex"])
+    assert labels and labels[0] == "G"
+    first_ids = {v["id"] for v in first["session_state"]["venues"]}
+    assert not first_ids & {v["id"] for v in more["session_state"]["venues"]}
+
+    past_end = client.post("/api/more", json={"scenario_id": "tokyo_meat_4", "page": plan["pages"]}).json()
+    assert past_end["status"] == "none"
+    assert client.post("/api/more", json={"scenario_id": "nope", "page": 1}).status_code == 404
+    # the free-text chat's next page re-runs the LLM pipeline, so it needs the code like /api/chat does
+    assert client.post("/api/more", json={"messages": [{"sender": "A", "text": "横浜から"}], "page": 1}).status_code == 403
+
+
+def test_simulator_suggestion_by_name_joins_the_vote():
+    client = TestClient(create_app(make_deps()))
+    hub = client.post("/api/scenario", json={"scenario_id": "tokyo_meat_4"}).json()["plan"]["hub"]
+    data = client.post("/api/suggest", json={"text": "知らない店", "hub": hub, "n": 1, "sender": "田中"}).json()
+    assert data["venue"]["name"] == "知らない店" and data["venue"]["walk_min"]
+    assert "田中さんの提案" in json.dumps(data["bot_messages"], ensure_ascii=False)
+    assert _venue_labels(data["bot_messages"][0]["flex"]) == ["提案1"]
+    # names only (no links fetched from the public page), three at most, and only near a real hub
+    assert client.post("/api/suggest", json={"text": "https://tabelog.com/x", "hub": hub, "n": 1}).status_code == 400
+    assert client.post("/api/suggest", json={"text": "知らない店", "hub": hub, "n": 4}).status_code == 400
+    assert client.post("/api/suggest", json={"text": "知らない店", "hub": {"lat": 0, "lng": 0}, "n": 1}).status_code == 400
+    assert client.post("/api/suggest", json={"text": "ない店", "hub": hub, "n": 1}).status_code == 404
+
+
 def test_free_text_chat_needs_the_admin_token():
     client = TestClient(create_app(make_deps()))
     body = {"messages": [{"sender": "A", "text": "横浜から"}]}

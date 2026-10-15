@@ -928,3 +928,9 @@ body {
 .btn-danger:hover {
   background: #DC2626;
 }
+
+/* "💡 お店を提案する": the input bar takes a shop name instead of a chat message */
+.line-input-bar input.suggest-mode {
+  outline: 2px solid #f59e0b;
+  background: #fffbeb;
+}

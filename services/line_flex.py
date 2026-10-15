@@ -279,7 +279,7 @@ def _venue_bubble(nonce: str, label: str, shop: dict, pick: dict, featured: Opti
 
 def venues_carousel(nonce: str, shops: list[dict], picks: list[dict], labels: list[str],
                     more_left: int, searches_left: int, featured: Optional[list[Optional[dict]]] = None,
-                    leader: Optional[str] = None, can_suggest: bool = True) -> dict:
+                    leader: Optional[str] = None, can_suggest: bool = True, hint: Optional[str] = None) -> dict:
     featured = featured or [None] * len(shops)
     bubbles = [_venue_bubble(nonce, label, shop, pick, f)
                for label, shop, pick, f in zip(labels, shops, picks, featured)]
@@ -291,8 +291,8 @@ def venues_carousel(nonce: str, shops: list[dict], picks: list[dict], labels: li
         options.append(postback("💡 お店を提案する", {"a": "suggest", "p": nonce}, "💡 お店を提案する", style="secondary"))
     options += [postback("📊 結果を見る", {"a": "results", "p": nonce}, "📊 結果を見る", style="secondary"),
                 postback("決める（幹事）", {"a": "close", "p": nonce}, "決める", style="link")]
-    hint = ("条件を変えるなら「@AsobiAgent 和食がいい」のように送ってください"
-            f"（あと{searches_left}回）。" if searches_left > 0 else "このグループの検索回数を使い切りました。")
+    hint = hint or ("条件を変えるなら「@AsobiAgent 和食がいい」のように送ってください"
+                    f"（あと{searches_left}回）。" if searches_left > 0 else "このグループの検索回数を使い切りました。")
     tail_body = [kicker("ほかの候補"), title("いいと思うお店に、いくつでも投票してください"),
                  text(f"いまの1位：{leader}" if leader else "いまの1位：まだ投票がありません", size="xs", color=INK, margin="md"),
                  note(hint)]

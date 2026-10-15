@@ -92,7 +92,7 @@ English summary: [below](#english-summary).
 | `jobs/form_agent/` | Cloud Run Job（Playwright） |
 | `deploy/` | `deploy.sh`（setup / secrets / app / agent / webhook） |
 | `docs/` | [デプロイ手順](docs/DEPLOYMENT.md)、[Time Outの扱い](docs/TIMEOUT.md)、[構成図](docs/architecture/) |
-| `tests/` | 自動テスト 77件（グループの一連の流れ、上限、削除、フォールバック、審査用コード、ひとりグループ） |
+| `tests/` | 自動テスト 79件（グループの一連の流れ、上限、削除、フォールバック、審査用コード、ひとりグループ） |
 
 ## ローカルで動かす
 

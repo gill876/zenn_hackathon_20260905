@@ -5,6 +5,7 @@
  * HotPepper venues) with rule-based reading instead of the LLM. Free-text chat runs the full LLM
  * pipeline and needs the admin token (open the page once with ?admin=<token>) or the judges' shared code.
  * Choosing a venue opens 予約の準備: a call script, the HotPepper page, and the demo form agent.
+ * As in LINE, "別の候補を見る" pages through the shortlist and "💡 お店を提案する" adds a place by name.
  * Nothing here places a phone call or claims a booking was made.
  */
 
@@ -51,7 +52,18 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   let history_ = [];   // messages in the current simulated chat
-  let lastPlan = null; // day/time/pax/organizer from the last pipeline run
+  let lastPlan = null; // day/time/pax/organizer/hub/page from the last pipeline run
+  let lastRun = null;  // {scenario_id} or {messages}: what to re-run for the next page of venues
+  let suggestMode = false;
+  let suggestCount = 0;
+  const MAX_SUGGESTIONS = 3;
+  const inputPlaceholder = chatInput.placeholder;
+
+  function endSuggestMode() {
+    suggestMode = false;
+    chatInput.placeholder = inputPlaceholder;
+    chatInput.classList.remove("suggest-mode");
+  }
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -65,6 +77,9 @@ document.addEventListener("DOMContentLoaded", () => {
   resetBtn.addEventListener("click", () => {
     history_ = [];
     lastPlan = null;
+    lastRun = null;
+    suggestCount = 0;
+    endSuggestMode();
     chatBody.innerHTML = '<div class="chat-date-separator"><span>今日</span></div>';
     resetTelemetryUI();
     addLogEntry("リセットしました。");
@@ -93,6 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function handleSendMessage() {
     const text = chatInput.value.trim();
     if (!text) return;
+    if (suggestMode) return handleSuggest(text);
     const sender = senderSelect.value;
     chatInput.value = "";
     appendUserBubble(sender, text);
@@ -110,8 +126,74 @@ document.addEventListener("DOMContentLoaded", () => {
         updatePipelineStep("agent_1", "", "未実行");
         return;
       }
+      lastRun = { messages: [...history_] };
+      suggestCount = 0;
       renderBackendResponse(data);
     } catch (err) {
+      appendSystemText("通信エラーが発生しました。");
+    }
+  }
+
+  // ---- "💡 お店を提案する": a place by name, looked up near the meeting station ------------------------------
+  async function handleSuggest(text) {
+    chatInput.value = "";
+    endSuggestMode();
+    appendUserBubble(senderSelect.value, `提案 ${text}`);
+    const typing = appendBotBubble("集合駅の近くでお店を探しています…", true);
+    try {
+      const res = await fetch("/api/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, hub: (lastPlan && lastPlan.hub) || {}, n: suggestCount + 1, sender: senderSelect.value }),
+      });
+      const data = await res.json();
+      typing.remove();
+      if (!res.ok) {
+        appendSystemText(data.detail || "見つかりませんでした。");
+        return;
+      }
+      suggestCount += 1;
+      if (lastPlan) lastPlan.walk = { ...(lastPlan.walk || {}), [data.venue.id]: data.venue.walk_min };
+      (data.bot_messages || []).forEach((bm) => appendFlexMessage(bm.flex));
+      addLogEntry(`[Agent 3] 提案「${data.venue.name}」を集合駅の近くで照合し、候補に追加`);
+    } catch (err) {
+      typing.remove();
+      appendSystemText("通信エラーが発生しました。");
+    }
+  }
+
+  // ---- "別の候補を見る": the next page of the same shortlist -------------------------------------------------
+  async function showMoreVenues() {
+    if (!lastRun || !lastPlan) return;
+    if ((lastPlan.page || 0) + 1 >= (lastPlan.pages || 1)) {
+      appendSystemText("ほかの候補はもうありません。");
+      return;
+    }
+    appendUserBubble(senderSelect.value, "別の候補を見る");
+    const typing = appendBotBubble("ほかの候補を出しています…", true);
+    try {
+      const res = await fetch("/api/more", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Admin-Token": adminToken(), "X-Access-Code": accessInput.value.trim() },
+        body: JSON.stringify({ ...lastRun, page: (lastPlan.page || 0) + 1 }),
+      });
+      const data = await res.json();
+      typing.remove();
+      if (!res.ok) {
+        appendSystemText(data.detail || "表示できませんでした。");
+        return;
+      }
+      (data.bot_messages || []).forEach((bm) => {
+        if (bm.type === "flex") appendFlexMessage(bm.flex);
+        else if (bm.text) appendBotBubble(bm.text);
+      });
+      if (data.plan) {
+        lastPlan = { ...lastPlan, page: data.plan.page, pages: data.plan.pages,
+                     walk: { ...(lastPlan.walk || {}), ...(data.plan.walk || {}) } };
+        addLogEntry(`[Agent 3] 同じ候補リストの${data.plan.page + 1}/${data.plan.pages}ページ目を表示`);
+      }
+    } catch (err) {
+      typing.remove();
       appendSystemText("通信エラーが発生しました。");
     }
   }
@@ -147,6 +229,9 @@ document.addEventListener("DOMContentLoaded", () => {
     chatBody.innerHTML = '<div class="chat-date-separator"><span>今日</span></div>';
     resetTelemetryUI();
     history_ = [...(clientScenarios[scenarioId] || [])];
+    lastRun = { scenario_id: scenarioId };
+    suggestCount = 0;
+    endSuggestMode();
     for (const msg of history_) {
       appendUserBubble(msg.sender, msg.text);
       await new Promise((r) => setTimeout(r, 200));
@@ -188,7 +273,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (sd) {
       const d = sd.details || {};
       llmPayloadView.textContent = JSON.stringify({
-        reading: d.source === "llm" ? "LLM（GMI Cloud）" : "ルールベース（このページではLLMを使いません）",
+        reading: d.source === "llm" ? "LLM（Gemini on Vertex AI。障害時は GMI Cloud）" : "ルールベース（このページではLLMを使いません）",
         members: sd.members, origins: sd.origins, day: d.day, time: d.time, meal: d.meal,
         preferences: d.preferences, hotpepper_genre: d.genre, keyword: d.keyword,
       }, null, 2);
@@ -358,10 +443,23 @@ document.addEventListener("DOMContentLoaded", () => {
   function onCardButton(btn) {
     if (btn.tagName === "A") return; // links open on their own
     const params = new URLSearchParams(btn.getAttribute("data-action") || "");
-    if (params.get("a") === "vote") {
+    const action = params.get("a");
+    if (action === "vote") {
       showReservationPrep(params.get("v"));
+    } else if (action === "more") {
+      showMoreVenues();
+    } else if (action === "suggest") {
+      if (suggestCount >= MAX_SUGGESTIONS) {
+        appendSystemText(`お店の提案は${MAX_SUGGESTIONS}件までです。`);
+        return;
+      }
+      suggestMode = true;
+      chatInput.placeholder = "行きたいお店の名前（例：肉ごこち 秋葉原）";
+      chatInput.classList.add("suggest-mode");
+      appendSystemText("💡 行きたいお店の名前を送ってください。集合駅の近くで探して、候補に加えます。");
+      chatInput.focus();
     } else {
-      appendSystemText("この操作はLINE版で使えます（このページでは投票ボタンだけ動きます）。");
+      appendSystemText("この操作はLINE版で使えます（このページでは投票・別の候補・お店の提案が使えます）。");
     }
   }
 
