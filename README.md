@@ -1,11 +1,22 @@
 # AsobiAgent（アソビ・エージェント）
 
+[![Tests](https://github.com/gill876/zenn_hackathon_20260905/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/gill876/zenn_hackathon_20260905/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Zenn Agentic AI Hackathon vol.5](https://img.shields.io/badge/Zenn-Agentic_AI_Hackathon_vol.5-3EA8FF?logo=zenn&logoColor=white)](https://zenn.dev/hackathons/google-cloud-japan-ai-hackathon-vol5)
+
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](Dockerfile)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](server.py)
+[![Gemini on Vertex AI](https://img.shields.io/badge/Gemini_3.5_Flash--Lite-Vertex_AI-8E75B2?logo=googlegemini&logoColor=white)](services/llm_client.py)
+[![Cloud Run](https://img.shields.io/badge/Google_Cloud-Cloud_Run-4285F4?logo=googlecloud&logoColor=white)](docs/DEPLOYMENT.md)
+[![Firestore](https://img.shields.io/badge/Firestore-TTL-FFCA28?logo=firebase&logoColor=black)](services/firestore_store.py)
+[![LINE](https://img.shields.io/badge/LINE-Messaging_API_%2B_LIFF-06C755?logo=line&logoColor=white)](bot/)
+[![Playwright](https://img.shields.io/badge/Playwright-Cloud_Run_Jobs-2EAD33)](jobs/form_agent/)
+
 LINEグループに入れるだけで、**日程 → 公平な集合駅 → みんなの好みに合うお店 → 予約の準備**までを段取りする
 エージェントです。AIが段取りをして、決めるのは人。第5回 Agentic AI Hackathon with Google Cloud の提出作品です。
 
 ![システム構成](docs/architecture/architecture_ja.png)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 English summary: [below](#english-summary).
 
 ## LINEグループでの流れ
@@ -81,7 +92,7 @@ English summary: [below](#english-summary).
 | `jobs/form_agent/` | Cloud Run Job（Playwright） |
 | `deploy/` | `deploy.sh`（setup / secrets / app / agent / webhook） |
 | `docs/` | [デプロイ手順](docs/DEPLOYMENT.md)、[Time Outの扱い](docs/TIMEOUT.md)、[構成図](docs/architecture/) |
-| `tests/` | 自動テスト 76件（グループの一連の流れ、上限、削除、フォールバック、審査用コード、ひとりグループ） |
+| `tests/` | 自動テスト 77件（グループの一連の流れ、上限、削除、フォールバック、審査用コード、ひとりグループ） |
 
 ## ローカルで動かす
 
